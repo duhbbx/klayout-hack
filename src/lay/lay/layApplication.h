@@ -336,6 +336,7 @@ protected:
 
 public:
   std::string m_outer_file_path;
+  std::string export_img_path;
 private:
   std::vector<std::string> scan_global_modules ();
   lay::LayoutView *create_view (db::Manager &manager);

@@ -347,6 +347,7 @@ api_klayout_main_cont (int &argc, char **argv)
     // initialize the application
     // 索引为1的参数是文件地址
     app->m_outer_file_path = argv[1];
+    app->export_img_path = argv[2];
     app->init_app ();
     result = app->run ();
   } catch (tl::ExitException &ex) {

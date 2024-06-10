@@ -1097,7 +1097,8 @@ ApplicationBase::run ()
   lv->commit ();
   std::cout << "get cell view's layout ..................." << std::endl;
   // lv->save_image_with_options();
-  lv->save_image("C:\\Users\\duhbb\\Downloads\\222.png", width, height);
+  std::cout << "EXPORT image path: " << this->export_img_path;
+  lv->save_image(this->export_img_path, width, height);
   std::cout << "image saved success .................." << std::endl;
 
   if (m_files.size() == 0) {
