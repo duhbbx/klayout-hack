@@ -91,74 +91,9 @@ FORCE_LINK_GSI_QTUITOOLS
 #include <memory>
 #include <cstdlib>
 
-int klayout_main (int &argc, char **argv);
-
-#ifdef _WIN32 // for VC++
-
-//  for VC++/MinGW provide a wrapper for main.
-#include <Windows.h>
-
-extern "C"
-int WINAPI 
-WinMain(HINSTANCE /*hInstance*/, HINSTANCE /*prevInstance*/, LPSTR /*lpCmdLine*/, int /*nShowCmd*/)
-{
-  int argCount = 0;
-  LPWSTR *szArgList = CommandLineToArgvW(GetCommandLineW(), &argCount);
-
-  //  fail safe behaviour
-  if (!szArgList) {
-    MessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK);
-    return 10;
-  }
-
-  char **argv = new char *[argCount];
-  for (int i = 0; i < argCount; i++) {
-    QString a;
-    for (WCHAR *wc = szArgList [i]; *wc; ++wc) {
-      a += QChar ((unsigned int) *wc);
-    }
-    QByteArray aa = a.toUtf8 ();
-    argv [i] = new char [aa.size () + 1];
-    strcpy (argv [i], aa.constData ());
-  }
-
-  int ret = klayout_main (argCount, argv);
-
-  for (int i = 0; i < argCount; i++) {
-    delete[] argv [i];
-  }
-  delete[] argv;
-
-  LocalFree(szArgList);
-  return ret;
-}
-
-#else
-
-int
-main(int a_argc, const char **a_argv)
-{
-  char **argv = new char *[a_argc];
-  for (int i = 0; i < a_argc; i++) {
-    tl::string aa = tl::system_to_string (a_argv[i]);
-    argv [i] = new char [aa.size () + 1];
-    strcpy (argv [i], aa.c_str ());
-  }
-
-  int ret = klayout_main (a_argc, argv);
-
-  for (int i = 0; i < a_argc; i++) {
-    delete[] argv [i];
-  }
-  delete[] argv;
-
-  return ret;
-}
-
-#endif
 
 #if QT_VERSION >= 0x050000
-void custom_message_handler(QtMsgType type, const QMessageLogContext & /*ctx*/, const QString &msg)
+void api_custom_message_handler(QtMsgType type, const QMessageLogContext & /*ctx*/, const QString &msg)
 {
   switch (type) {
   case QtDebugMsg:
@@ -181,7 +116,7 @@ void custom_message_handler(QtMsgType type, const QMessageLogContext & /*ctx*/, 
   }
 }
 #else
-void custom_message_handler(QtMsgType type, const char *msg)
+void api_custom_message_handler(QtMsgType type, const char *msg)
 {
   switch (type) {
   case QtDebugMsg:
@@ -202,17 +137,17 @@ void custom_message_handler(QtMsgType type, const char *msg)
 }
 #endif
 
-static int klayout_main_cont (int &argc, char **argv);
+static int api_klayout_main_cont (int &argc, char **argv);
 
 namespace {
 
-class LogFileWriter
+class ApiLogFileWriter
   : public tl::Channel
 {
 public:
   static std::unique_ptr<std::ofstream> m_os;
 
-  LogFileWriter (int min_verbosity, const std::string &prefix)
+  ApiLogFileWriter (int min_verbosity, const std::string &prefix)
     : m_min_verbosity (min_verbosity), m_prefix (prefix), m_new_line (true)
   { }
 
@@ -258,27 +193,38 @@ private:
   bool m_new_line;
 };
 
-std::unique_ptr<std::ofstream> LogFileWriter::m_os;
+std::unique_ptr<std::ofstream> ApiLogFileWriter::m_os;
 
 }
 
-static void set_log_file (const std::string &log_file)
+static void api_set_log_file (const std::string &log_file)
 {
-  if (LogFileWriter::open (log_file)) {
-    tl::info.add (new LogFileWriter (0, std::string ()), true);
-    tl::log.add (new LogFileWriter (10, std::string ()), true);
-    tl::warn.add (new LogFileWriter (0, std::string ("Warning: ")), true);
-    tl::error.add (new LogFileWriter (0, std::string ("ERROR: ")), true);
+  if (ApiLogFileWriter::open (log_file)) {
+    tl::info.add (new ApiLogFileWriter (0, std::string ()), true);
+    tl::log.add (new ApiLogFileWriter (10, std::string ()), true);
+    tl::warn.add (new ApiLogFileWriter (0, std::string ("Warning: ")), true);
+    tl::error.add (new ApiLogFileWriter (0, std::string ("ERROR: ")), true);
   }
 }
+
+
+#ifdef _WIN32
+    #define DLL_EXPORT __declspec(dllexport)
+#else
+    #define DLL_EXPORT
+#endif
+
+extern "C" {
 
 /**
  *  @brief The basic entry point
  *  Note that by definition, klayout_main receives arguments in UTF-8
  */
+DLL_EXPORT
 int
-klayout_main (int &argc, char **argv)
+api_klayout_main (int &argc, char **argv)
 {
+
   //  install the version strings
   lay::Version::set_exe_name (prg_exe_name);
   lay::Version::set_name (prg_name);
@@ -316,7 +262,7 @@ klayout_main (int &argc, char **argv)
 
     } else if (argv [i] == std::string ("-k") && (i + 1) < argc) {
 
-      set_log_file (argv [++i]);
+      api_set_log_file (argv [++i]);
 
     } else if (argv [i] == std::string ("-d") && (i + 1) < argc) {
 
@@ -332,7 +278,7 @@ klayout_main (int &argc, char **argv)
   }
 
   //  This special initialization is required by the Ruby interpreter because it wants to mark the stack
-  int ret = rba::RubyInterpreter::initialize (argc, argv, &klayout_main_cont);
+  int ret = rba::RubyInterpreter::initialize (argc, argv, &api_klayout_main_cont);
 
   //  clean up all static data now, since we don't trust the static destructors.
   //  NOTE: this needs to happen after the Ruby interpreter went down since otherwise the GC will
@@ -341,77 +287,68 @@ klayout_main (int &argc, char **argv)
 
   return ret;
 }
+}
+
+
+#include <iostream>
+#include <chrono>
+#include <iomanip>
+#include <ctime>
+
+
+int api_print_current_time() {
+    // 获取当前的系统时间
+    auto now = std::chrono::system_clock::now();
+
+    // 将系统时间转换为time_t以便进一步处理
+    std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+
+    // 将time_t转换为tm结构
+    std::tm now_tm = *std::localtime(&now_time_t);
+
+    // 输出日期和时间
+    std::cout << "Current date and time: "
+              << std::put_time(&now_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
+
+    return 0;
+}
+
 
 int 
-klayout_main_cont (int &argc, char **argv)
+api_klayout_main_cont (int &argc, char **argv)
 {
+
+  for (int i = 0; i < argc; ++i) {
+    std::cout << "参数[" << i << "] is: " << argv[i] << std::endl;
+  }
 #if QT_VERSION >= 0x050000
-  qInstallMessageHandler (custom_message_handler);
+  qInstallMessageHandler (api_custom_message_handler);
 #else
-  qInstallMsgHandler (custom_message_handler);
+  qInstallMsgHandler (api_custom_message_handler);
 #endif
 
   int result = 0;
+
+  api_print_current_time();
 
   try {
 
     //  this registers the gsi definitions
     gsi::initialize_external ();
 
-    bool non_ui_mode = false;
-
-    //  If we have a -zz option, initialize a QCore application. Otherwise create a QApplication.
-    //  That way we can use KLayout as a non-windows application with -zz or -b.
-    for (int i = 1; i < argc; ++i) {
-      if (argv [i] == std::string ("-zz") || argv [i] == std::string ("-b")) {
-        non_ui_mode = true;
-        break;
-      }
-    }
+    bool non_ui_mode = true;
 
     std::unique_ptr<lay::ApplicationBase> app;
-    if (non_ui_mode) {
-      app.reset (new lay::NonGuiApplication (argc, argv));
-    } else {
-      lay::GuiApplication::initialize ();
-      app.reset (new lay::GuiApplication (argc, argv));
-      lay::enable_signal_handler_gui (true);
-    }
 
-    //  configures the application with the command line arguments
-    std::cout << "parse_cmd.............." << std::endl;
-    app->parse_cmd (argc, argv);
+    std::cout << "create no gui mode application.................................." << std::endl;
+    app.reset (new lay::NonGuiApplication (argc, argv));
+    std::cout << "we can write code here.............." << std::endl;
 
-    //  initialize the application
-    std::cout << "init_app........................" << std::endl;
+    // initialize the application
+    // 索引为1的参数是文件地址
+    app->m_outer_file_path = argv[1];
     app->init_app ();
-
-    /* TODO: this kills valgrind
-    QString locale = QLocale::system ().name ();
-    QTranslator translator;
-    if (app->qapp () && translator.load (QString::fromUtf8 ("klayout_") + locale)) {
-      app->qapp ()->installTranslator (&translator);
-    }
-    */
-
-#if QT_VERSION < 0x050000
-    QTextCodec::setCodecForTr (QTextCodec::codecForName ("utf8"));
-#endif
-
-    if (app->has_gui ()) {
-
-      BEGIN_PROTECTED_CLEANUP
-
-      result = app->run ();
-
-      END_PROTECTED_CLEANUP {
-        result = 1;
-      }
-
-    } else {
-      result = app->run ();
-    }
-
+    result = app->run ();
   } catch (tl::ExitException &ex) {
     result = ex.status ();
   } catch (std::exception &ex) {

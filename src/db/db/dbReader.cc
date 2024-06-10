@@ -90,6 +90,7 @@ Reader::Reader (tl::InputStream &stream)
   //  Detect the format by asking all reader declarations
   for (tl::Registrar<db::StreamFormatDeclaration>::iterator rdr = tl::Registrar<db::StreamFormatDeclaration>::begin (); rdr != tl::Registrar<db::StreamFormatDeclaration>::end () && ! mp_actual_reader; ++rdr) {
     m_stream.reset ();
+    std::cout << "format name: " << rdr->format_name() << std::endl;
     if (rdr->detect (m_stream)) {
       m_stream.reset ();
       mp_actual_reader = rdr->create_reader (m_stream);

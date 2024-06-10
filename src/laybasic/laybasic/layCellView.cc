@@ -380,6 +380,7 @@ LayoutHandle::save_as (const std::string &fn, tl::OutputStream::OutputStreamMode
 db::LayerMap 
 LayoutHandle::load (const db::LoadLayoutOptions &options, const std::string &technology)
 {
+  std::cout << "[LayoutHandle::load (const] ready load ........................... " << std::endl;
   m_load_options = options;
   m_save_options = db::SaveLayoutOptions ();
   m_save_options_valid = false;

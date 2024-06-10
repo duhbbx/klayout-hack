@@ -18,6 +18,8 @@ SUBDIRS = \
   ant \
   img \
   edt \
+  klayout_exportapi \
+
 
 equals(HAVE_RUBY, "1") {
   SUBDIRS += drc lvs
@@ -28,6 +30,7 @@ equals(HAVE_RUBY, "1") {
   # TODO: make buddies able to build without Qt
   SUBDIRS += \
     klayout_main \
+    klayout_exportapi \
     lay \
     layui \
     fontgen \

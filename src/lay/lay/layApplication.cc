@@ -242,6 +242,10 @@ ApplicationBase::parse_cmd (int &argc, char **argv)
   //  get the KLayout path
   m_klayout_path = lay::get_klayout_path ();
 
+  for (std::string path : m_klayout_path) {
+    std::cout << "klayout_path = " << path << std::endl;
+  }
+
   //  by default write the configuration
   m_write_config_file = true;
 
@@ -280,6 +284,9 @@ ApplicationBase::parse_cmd (int &argc, char **argv)
   }
 
   //  transscribe the arguments to UTF8
+
+
+  std::cout << "convert args to UTF8" << std::endl;
   std::vector<std::string> args;
   args.reserve (argc);
   for (int i = 0; i < argc; ++i) {
@@ -538,6 +545,8 @@ ApplicationBase::parse_cmd (int &argc, char **argv)
 
     } else {
 
+      std::cout << "no options, layout_file: " << layout_file << std::endl;
+      std::cout << "push file to m_files " << a << std::endl;
       m_files.push_back (std::make_pair (layout_file, std::make_pair (a, std::string ())));
 
     }
@@ -628,15 +637,6 @@ ApplicationBase::init_app ()
 
   //  initialize the tl::Expression subsystem with GSI-bound classes
   gsi::initialize_expressions ();
-
-  //  create the ruby and python interpreter instances now.
-  //  Hint: we do this after load_plugin, because that way the plugins can register GSI classes and methods.
-  //  TODO: do this through some auto-registration
-  mp_ruby_interpreter = new rba::RubyInterpreter ();
-  mp_python_interpreter = new pya::PythonInterpreter ();
-
-  //  initialize the Python interpreter - load the pya module
-  pya::PythonInterpreter::initialize ();
 
   //  Read some configuration values that we need early
   bool editable_from_config = false;
@@ -764,52 +764,6 @@ ApplicationBase::init_app ()
 
   }
 
-  if (mc) {
-
-    //  create the basic macro categories
-
-    if (ruby_interpreter ().available ()) {
-      std::vector<std::string> folders;
-      folders.push_back ("macros");
-      folders.push_back ("ruby");
-      mc->add_macro_category ("macros", "Ruby", folders);
-    }
-
-    if (python_interpreter ().available ()) {
-      std::vector<std::string> folders;
-      folders.push_back ("pymacros");
-      folders.push_back ("python");
-      mc->add_macro_category ("pymacros", "Python", folders);
-    }
-
-    mc->enable_implicit_macros (! m_no_macros);
-
-    //  Add the global ruby modules as the first ones.
-    //  TODO: this is a deprecated feature.
-    std::vector<std::string> global_modules = scan_global_modules ();
-    m_load_macros.insert (m_load_macros.begin (), global_modules.begin (), global_modules.end ());
-
-    size_t local_folders = (lay::get_appdata_path ().empty () ? 0 : 1);
-
-    for (std::vector <std::string>::const_iterator p = m_klayout_path.begin (); p != m_klayout_path.end (); ++p) {
-      if (size_t (p - m_klayout_path.begin ()) < local_folders) {
-        mc->add_path (*p, tl::to_string (QObject::tr ("Local")), std::string (), false);
-      } else if (m_klayout_path.size () == 1 + local_folders) {
-        mc->add_path (*p, tl::to_string (QObject::tr ("Global")), std::string (), true);
-      } else {
-        mc->add_path (*p, tl::to_string (QObject::tr ("Global")) + " - " + *p, std::string (), true);
-      }
-    }
-
-    //  Install the custom folders
-    for (std::vector <std::pair<std::string, std::string> >::const_iterator p = m_custom_macro_paths.begin (); p != m_custom_macro_paths.end (); ++p) {
-      mc->add_path (p->first, tl::to_string (QObject::tr ("Project")) + " - " + p->first, p->second, false);
-    }
-
-    //  Actually load the macros and/or establish the search path
-    mc->finish ();
-
-  }
 
   //  If the editable flag was not set, use it from the 
   //  configuration. Since it is too early now, we cannot use the
@@ -839,30 +793,9 @@ ApplicationBase::init_app ()
     }
   }
 
-  //  run all early autorun macros
-  lym::MacroCollection::root ().autorun_early ();
-
   //  redo gsi::initialize as the macros may have registered new external classes
   //  through the "doc to external class" mechanism.
   gsi::initialize ();
-
-  //  autorun_early may have added macro categories, so we need to call finish() again
-  if (mc) {
-
-    mc->finish ();
-
-    //  as this regenerates the macro collection, autorun_early is required again
-    //  note: this does not re-execute macros that have been executed already
-    lym::MacroCollection::root ().autorun_early ();
-
-  }
-
-  //  rescan the folders because early autorun macros might have added 
-  //  suffixes through the MacroInterpreter interface.
-  lym::MacroCollection::root ().rescan ();
-
-  //  and yet another autorun_early pass ..
-  lym::MacroCollection::root ().autorun_early ();
 
   //  creates the main window or plugin root as required
   setup ();
@@ -1109,213 +1042,127 @@ ApplicationBase::usage ()
 int
 ApplicationBase::run ()
 {
+  std::cout << "ApplicationBase::run ...................." << std::endl;
   lay::MainWindow *mw = main_window ();
-  gtf::Player player (0);
-
-  if (mw) {
-
-    (mw)->set_synchronous (m_sync_mode);
-
-    if (! m_no_gui) {
-      (mw)->setWindowTitle (tl::to_qstring (version ()));
-      (mw)->resize (800, 600);
-      (mw)->show ();
-    }
-
-    if (! m_gtf_replay.empty ()) {
-      player.load (m_gtf_replay);
-    }
-
-    start_recording ();
-
-  }
-
   int result = 0;
-
-  bool config_failed = false;
-
-  for (std::vector <std::string>::const_iterator c = m_config_files.begin (); c != m_config_files.end (); ++c) {
-    BEGIN_PROTECTED_CLEANUP
-      dispatcher ()->read_config (*c);
-      //  if the last config was read successfully no reset will happen:
-      config_failed = false;
-    END_PROTECTED_CLEANUP {
-      config_failed = true;
-    }
-  }
-
-  if (config_failed) {
-    reset_config ();
-  }
-
-  for (std::vector< std::pair<std::string, std::string> >::const_iterator v = m_variables.begin (); v != m_variables.end (); ++v) {
-    ruby_interpreter ().define_variable (v->first, v->second);
-    python_interpreter ().define_variable (v->first, v->second);
-    tl::log << "Variable definition: " << v->first << "='" << v->second << "'";
-  }
-
-  for (std::vector<std::string>::const_iterator m = m_load_macros.begin (); m != m_load_macros.end (); ++m) {
-
-    BEGIN_PROTECTED 
-
-      std::unique_ptr<lym::Macro> macro (new lym::Macro ());
-      macro->load_from (*m);
-      macro->set_file_path (*m);
-      if (macro->show_in_menu ()) {
-        //  menu-based macros are just registered so they are shown in the menu
-        lay::MacroController *mc = lay::MacroController::instance ();
-        if (mc) {
-          tl::log << "Registering macro '" << *m << "'";
-          mc->add_temp_macro (macro.release ());
-        }
-      } else {
-        //  other macros given with -rm are run
-        tl::log << "Run macro '" << *m << "'";
-        macro->run ();
-      }
-
-    END_PROTECTED
-
-  }
-
-  //  Run plugin and macro specific initializations
-  autorun ();
-
-  //  Some objects we need during batch mode view generation
+  reset_config ();
   db::Manager batch_mode_manager;
   tl::shared_ptr<LayoutView> batch_mode_view;
+  batch_mode_view.reset (create_view (batch_mode_manager));
+  boolean add_cellview;
+  std::cout << "ready to load layout.............................." << std::endl;
+  if (m_no_gui) {
+    std::cout << "m_no_gui is true" << std::endl;
+  } else {
+    std::cout << "m_no_gui is false" << std::endl;
+  }
+  std::string temp = this->m_outer_file_path;
+  std::cout << "File to load is: " << temp;
+  batch_mode_view.get()->load_layout(temp, false);
+  // 获取当前的 LayoutView
+  lay::LayoutView *lv = lay::LayoutView::current();
+  const lay::CellView& activeCellView = lv->active_cellview();
+  lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
+  std::cout << "zoom fit..................................." << std::endl;
+  batch_mode_view->set_active_cellview_index (0);
+  batch_mode_view->zoom_fit ();
+  std::cout << "zoom fit finish" << std::endl;
 
-  if (mw) {
+  std::cout << "get current layoutview...................." << std::endl;
+  if (lv == nullptr) {
+      std::cerr << "No current layout view available." << std::endl;
+      return -1;
+  }
+  std::cout << "cell view size is: " << lv->cellviews() << std::endl;
+  const lay::CellView& cv = lv->cellview(0);
+  std::cout << "get first cell view" << std::endl;
+  // db::Layout* ly1 = cv.layout();
+  db::Layout* ly = cv.cell()->layout();
+  const db::Cell &top_cell = ly->cell (*ly->begin_top_down ());
+  const db::Box bbox = top_cell.bbox();
+  int width = 2000;
 
-    for (std::vector <std::pair<file_type, std::pair<std::string, std::string> > >::const_iterator f = m_files.begin (); f != m_files.end (); ++f) {
+  double layout_size_x = bbox.width();
+  double layout_size_y = bbox.height();
+  int height = (int) ((1.0 * width * layout_size_y) / layout_size_x);
 
-      if (f->first == layout_file || f->first == layout_file_with_tech) {
+  
+  for (lay::LayerPropertiesConstIterator l = lv->begin_layers (); !l.at_end (); ++l) {
+    std::cout << "set visible = true ################################" << std::endl;
+    l->visible (true /*real*/);
+  }
 
-        std::string filename = f->second.first;
+  lv->transaction (tl::to_string (tr ("Show all cells")));
+  lv->show_all_cells ();
+  lv->commit ();
+  std::cout << "get cell view's layout ..................." << std::endl;
+  // lv->save_image_with_options();
+  lv->save_image("C:\\Users\\duhbb\\Downloads\\222.png", width, height);
+  std::cout << "image saved success .................." << std::endl;
 
-        if (f->first != layout_file_with_tech) {
-          mw->add_mru (f->second.first);
-          mw->load_layout (f->second.first, m_same_view ? 2 /*same view*/ : 1 /*new view*/);
-        } else {
-          mw->add_mru (f->second.first, f->second.second);
-          mw->load_layout (f->second.first, f->second.second, m_same_view ? 2 /*same view*/ : 1 /*new view*/);
-        }
+  if (m_files.size() == 0) {
+    std::cout << "NO FILES in m_files........................." << std::endl;
+  }
 
-        //  Make the first one loaded the active one.
-        if (mw->current_view ()) {
-          mw->current_view ()->set_active_cellview_index (0);
-        }
+  for (std::vector <std::pair<file_type, std::pair<std::string, std::string> > >::const_iterator f = m_files.begin (); f != m_files.end (); ++f) {
 
-      } else if (f->first == rdb_file) {
+    if (f->first == layout_file || f->first == layout_file_with_tech) {
 
-        if (mw->current_view () == 0) {
-          mw->create_view ();
-        }
+      std::string filename = f->second.first;
 
-        if (mw->current_view () != 0) {
-          std::unique_ptr <rdb::Database> db (new rdb::Database ());
-          db->load (f->second.first);
-          int rdb_index = mw->current_view ()->add_rdb (db.release ());
-          mw->current_view ()->open_rdb_browser (rdb_index, mw->current_view ()->active_cellview_index ());
-        }
-
-      } else if (f->first == l2ndb_file) {
-
-        if (mw->current_view () == 0) {
-          mw->create_view ();
-        }
-
-        if (mw->current_view () != 0) {
-          int l2ndb_index = mw->current_view ()->add_l2ndb (db::LayoutToNetlist::create_from_file (f->second.first));
-          mw->current_view ()->open_l2ndb_browser (l2ndb_index, mw->current_view ()->active_cellview_index ());
-        }
-
+      if (batch_mode_view.get () != 0 && ! m_same_view) {
+        tl::warn << tl::sprintf (tl::to_string (tr ("Ignoring additional views in batch mode (file %s)")), filename);
+        continue;
       }
-    }
 
-    if (! m_layer_props_file.empty ()) {
-
-      mw->load_layer_properties (m_layer_props_file, true /*all views*/, m_lyp_add_default);
-
-      tl::log << "Layer properties loaded '" << m_layer_props_file << "'";
-
-      //  because the layer may carry transformations, we need to refit the cellviews.
-      for (unsigned int v = 0; v != mw->views (); ++v) {
-        mw->view (v)->zoom_fit ();
+      if (! batch_mode_view) {
+        batch_mode_view.reset (create_view (batch_mode_manager));
       }
 
-    }
+      if (f->first != layout_file_with_tech) {
+        batch_mode_view->load_layout (f->second.first, true);
+      } else {
+        batch_mode_view->load_layout (f->second.first, f->second.second, true);
+      }
 
-    if (! m_session_file.empty ()) {
-      mw->restore_session (m_session_file);
-      tl::log << "Session restored '" << m_session_file << "'";
-    }
+      //  Make the first one loaded the active one.
+      batch_mode_view->set_active_cellview_index (0);
 
-    if (! m_gtf_replay.empty ()) {
-      player.replay (m_gtf_replay_rate, m_gtf_replay_stop);
+    } else if (f->first == rdb_file) {
+
+      if (! batch_mode_view) {
+        batch_mode_view.reset (create_view (batch_mode_manager));
+      }
+
+      std::unique_ptr <rdb::Database> db (new rdb::Database ());
+      db->load (f->second.first);
+      batch_mode_view->add_rdb (db.release ());
+
+    } else if (f->first == l2ndb_file) {
+
+      if (! batch_mode_view) {
+        batch_mode_view.reset (create_view (batch_mode_manager));
+      }
+
+      batch_mode_view->add_l2ndb (db::LayoutToNetlist::create_from_file (f->second.first));
+
     }
+  }
+
+  if (! m_layer_props_file.empty () && batch_mode_view.get ()) {
+
+    batch_mode_view->load_layer_props (m_layer_props_file, m_lyp_add_default);
+
+    tl::log << "Layer properties loaded '" << m_layer_props_file << "'";
+
+    //  because the layer may carry transformations, we need to refit the cellviews.
+    batch_mode_view->zoom_fit ();
 
   } else {
-
-    //  in batch mode create at least one
-
-    for (std::vector <std::pair<file_type, std::pair<std::string, std::string> > >::const_iterator f = m_files.begin (); f != m_files.end (); ++f) {
-
-      if (f->first == layout_file || f->first == layout_file_with_tech) {
-
-        std::string filename = f->second.first;
-
-        if (batch_mode_view.get () != 0 && ! m_same_view) {
-          tl::warn << tl::sprintf (tl::to_string (tr ("Ignoring additional views in batch mode (file %s)")), filename);
-          continue;
-        }
-
-        if (! batch_mode_view) {
-          batch_mode_view.reset (create_view (batch_mode_manager));
-        }
-
-        if (f->first != layout_file_with_tech) {
-          batch_mode_view->load_layout (f->second.first, true);
-        } else {
-          batch_mode_view->load_layout (f->second.first, f->second.second, true);
-        }
-
-        //  Make the first one loaded the active one.
-        batch_mode_view->set_active_cellview_index (0);
-
-      } else if (f->first == rdb_file) {
-
-        if (! batch_mode_view) {
-          batch_mode_view.reset (create_view (batch_mode_manager));
-        }
-
-        std::unique_ptr <rdb::Database> db (new rdb::Database ());
-        db->load (f->second.first);
-        batch_mode_view->add_rdb (db.release ());
-
-      } else if (f->first == l2ndb_file) {
-
-        if (! batch_mode_view) {
-          batch_mode_view.reset (create_view (batch_mode_manager));
-        }
-
-        batch_mode_view->add_l2ndb (db::LayoutToNetlist::create_from_file (f->second.first));
-
-      }
-    }
-
-    if (! m_layer_props_file.empty () && batch_mode_view.get ()) {
-
-      batch_mode_view->load_layer_props (m_layer_props_file, m_lyp_add_default);
-
-      tl::log << "Layer properties loaded '" << m_layer_props_file << "'";
-
-      //  because the layer may carry transformations, we need to refit the cellviews.
-      batch_mode_view->zoom_fit ();
-
-    }
-
+    std::cout << "origin: no props or empty layout view" << std::endl;
   }
+
+  
 
   //  Give the plugins a change to do some last-minute initialisation and checks
   if (dispatcher ()) {
@@ -1330,26 +1177,11 @@ ApplicationBase::run ()
     mw->about_to_exec ();
   }
 
-  if (! m_run_macro.empty ()) {
-
-    tl::log << "Run macro '" << m_run_macro << "'";
-    lym::Macro macro;
-    macro.load_from (m_run_macro);
-    macro.set_file_path (m_run_macro);
-    result = macro.run ();
-
-    if (result == 0 && ! m_run_macro_and_exit) {
-      result = exec ();
-    }
-
-  } else {
-    result = exec ();
-  }
-
+  result = exec ();
   finish ();
-
   batch_mode_view.reset (0);
 
+  std::cout << "seems end here ..........................." << std::endl;
   return result;
 }
 
@@ -1359,15 +1191,18 @@ ApplicationBase::create_view (db::Manager &manager)
   //  create a new view
   lay::LayoutView *view = new lay::LayoutView (&manager, lay::ApplicationBase::instance ()->is_editable (), dispatcher ());
 
+  std::cout << "after new a view in create_view......................" << std::endl;
   //  set initial attributes
   view->set_synchronous (m_sync_mode);
 
+  std::cout << "after set synchronous............................" << std::endl;
+
   int tl = 0;
-  dispatcher ()->config_get (cfg_initial_hier_depth, tl);
+  // dispatcher ()->config_get (cfg_initial_hier_depth, tl);
   view->set_hier_levels (std::make_pair (0, tl));
-
+  std::cout << "set_hier_levels............................" << std::endl;
   view->set_current ();
-
+  std::cout << "set_current............................" << std::endl;
   return view;
 }
 

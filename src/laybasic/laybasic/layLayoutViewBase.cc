@@ -2926,6 +2926,7 @@ LayoutViewBase::get_pixels_with_options_mono (unsigned int width, unsigned int h
 void
 LayoutViewBase::save_image (const std::string &fn, unsigned int width, unsigned int height)
 {
+  std::cout << "save image ..........................######" << fn << std::endl;
   tl::SelfTimer timer (tl::verbosity () >= 11, tl::to_string (tr ("Save image")));
 
   QImageWriter writer (tl::to_qstring (fn), QByteArray ("PNG"));
@@ -2948,6 +2949,7 @@ LayoutViewBase::save_image (const std::string &fn, unsigned int width, unsigned 
 void
 LayoutViewBase::save_image (const std::string &fn, unsigned int width, unsigned int height)
 {
+  std::cout << "save to image PNG................, file address: " << fn << std::endl;
   tl::SelfTimer timer (tl::verbosity () >= 11, tl::to_string (tr ("Save image")));
 
   lay::Viewport vp (width, height, mp_canvas->viewport ().target_box ());
@@ -2960,7 +2962,7 @@ LayoutViewBase::save_image (const std::string &fn, unsigned int width, unsigned 
   img.set_texts (texts);
   img.write_png (stream);
 
-  tl::log << "Saved image to " << fn;
+  std::cout << "Saved image to " << fn << std::endl;
 }
 #else
 void
@@ -3353,8 +3355,11 @@ LayoutViewBase::load_layout (const std::string &filename, const std::string &tec
 }
 
 unsigned int 
-LayoutViewBase::load_layout (const std::string &filename, const db::LoadLayoutOptions &options, const std::string &technology, bool add_cellview)
+LayoutViewBase::load_layout (const std::string &filename, const db::LoadLayoutOptions &options, const std::string &technology, 
+                             bool add_cellview)
 {
+
+  std::cout << "load layout deep style..............................." << std::endl;
   stop ();
   
   bool set_max_hier = (m_full_hier_new_cell || has_max_hier ());
@@ -3363,6 +3368,8 @@ LayoutViewBase::load_layout (const std::string &filename, const db::LoadLayoutOp
 
   //  create a new layout handle 
   lay::CellView cv;
+
+  std::cout << "create layout handle and layout................................." << std::endl;
   lay::LayoutHandle *handle = new lay::LayoutHandle (new db::Layout (is_editable (), manager ()), filename);
   cv.set (handle);
 
@@ -3376,6 +3383,12 @@ LayoutViewBase::load_layout (const std::string &filename, const db::LoadLayoutOp
     //  load the file
     {
       tl::log << tl::to_string (tr ("Loading file: ")) << filename << tl::to_string (tr (" with technology: ")) << technology;
+
+      std::cout << tl::to_string (tr ("Loading file: ")) 
+                << filename 
+                << tl::to_string (tr (" with technology: ")) 
+                << technology
+                << std::endl;
       lmap = cv->load (options, technology);
     }
 
@@ -5093,6 +5106,7 @@ LayoutViewBase::show_all_cells ()
   bool any = false;
 
   for (unsigned int i = 0; i < m_hidden_cells.size (); ++i) {
+    std::cout << "show hidden cells ##########################" << std::endl;
     if (! m_hidden_cells [i].empty ()) {
       if (transacting ()) {
         for (std::set<cell_index_type>::const_iterator ci = m_hidden_cells [i].begin (); ci != m_hidden_cells [i].end (); ++ci) {

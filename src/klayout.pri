@@ -17,6 +17,7 @@ LAYUI_INC = $$PWD/layui/layui
 LAY_INC = $$PWD/lay/lay
 DOC_INC = $$PWD/doc
 ICONS_INC = $$PWD/icons
+EXPORTAPI_INC = $$PWD/klayout_exportapi/klayout_exportapi
 
 QTBASIC_INC = $$PWD/gsiqt/qtbasic
 
