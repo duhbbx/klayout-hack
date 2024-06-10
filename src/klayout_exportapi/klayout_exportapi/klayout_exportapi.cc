@@ -341,6 +341,9 @@ api_klayout_main_cont (int &argc, char **argv)
     std::unique_ptr<lay::ApplicationBase> app;
 
     std::cout << "create no gui mode application.................................." << std::endl;
+    for (int i = 0; i < argc; ++i) {
+      std::cout <<"parameter[ " << i << "] is: " << argv[i] << std::endl;
+    }
     app.reset (new lay::NonGuiApplication (argc, argv));
     std::cout << "we can write code here.............." << std::endl;
 
