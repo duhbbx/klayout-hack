@@ -1,140 +1,98 @@
-# klayout
+# 构建 klayout
 
-This repository will hold the main sources for the KLayout project.
+1. 下载klayout hack之后的源码: https://github.com/duhbbx/klayout-hack.git
+2. 安装 msys2
+3. 打开 msys2 mingw 64 的shell
+4. 进入到下载的klayout hack源码的目录
+5. 更新pacman的清华镜像
+6. 安装必要的组件
+    ```bash
+    pacman -S make zip mingw-w64-x86_64-gcc mingw-w64-x86_64-make \
+          mingw-w64-x86_64-python3 mingw-w64-x86_64-qt5       \
+          mingw-w64-x86_64-ruby mingw-w64-x86_64-libgit2
+    ```
+7. 执行构建
+    ```
+    # Run in MSYS MinGW 64bit shell. This build uses 4 cores for compilation ("-j4"):
+    build.sh -j4
+    ```
+8. 构建后的任务
+    ```bash
+    cd bin-release
+    python3 -c "import sys; print(repr(sys.path))" >.python-paths.txt
+    ```
 
-Plugins can be included into the "plugins" directory from external sources.
-
-For more details see http://www.klayout.org.
+![alt text](image-1.png)
 
 
-## Building requirements
 
-Building on Linux:
 
-* Qt 4.7 or later (4.6 with some restrictions), Qt 5 or Qt 6
-* gcc 4.6 or later or clang 3.8 or later
 
-Building on Windows with MSYS2:
 
-* MSYS2 with gcc, Qt4, 5 or 6, zlib, ruby and python packages installed
 
-Building on Windows with MSVC 2017:
 
-* MSVC 2017
-* Build requisites from klayout-kit
+# 添加到环境变量
 
-For more build instructions see http://www.klayout.de/build.html.
 
-## Build options
+![alt text](image.png)
 
-* <b>Ruby</b>: with this option, Ruby scripts can be executed and developped within KLayout. Ruby support is detected automatically by the build script.
-* <b>Python</b>: with this option, Python scripts can be executed and developped within KLayout. Python support is detected automatically by the build script.
-* <b>Qt binding</b>: with this option, Qt objects are made available to Ruby and Python scripts. Qt bindings are enabled by default. Qt binding offers an option to create custom user interfaces from scripts and to interact with KLayout's main GUI. On the other hand, they provide a considerable overhead when building and running the application.
-* <b>64 bit coordinate support</b>: with this option, the coordinate type used internally is extended to 64bit as compared to 32bit in the standard version. This will duplicate memory requirements for coordinate lists, but allow a larger design space. 64bit coordinate support is experimental and disabled by default.
+mingw 64 的bin目录和klayout 构建后的 bin-release目录都加入到环境变量
 
-## Building instructions (Linux)
+构建全部结束，可以使用 c# 的代码调用了
 
-### Plain building for Qt4, Qt5 and Qt6 (one Qt version installed)
+参考下面的代码
 
-    ./build.sh
 
-### Building without Qt binding
+# c# 使用的demo
 
-    ./build.sh -without-qtbinding
 
-### Debug build
 
-    ./build.sh -debug
 
-### Building with a particular Ruby version
+```cs
+using System;
+using System.Runtime.InteropServices;
 
-    ./build.sh -ruby <path-to-ruby>
+class Program
+{
+    // 定义 API 函数
+    [DllImport("D:\\msys64\\home\\duhbb\\klayout\\bin-release\\klayout_exportapi.dll", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int api_klayout_main(ref int argc, IntPtr argv);
 
-(path-to-ruby is the full path of the particular ruby interpreter)
+    static void Main(string[] args)
+    {
+        string directory = @"C:\Users\duhbb\Downloads\";
+        string fileName = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".png";
 
-### Building with a particular Python version
+        string fullPath = Path.Combine(directory, fileName);
 
-    ./build.sh -python <path-to-python>
+        Console.WriteLine("Export path: " + fullPath);
+        // 准备参数
+        int argc = 3; // 额外加一个是程序名称
+        string[] newArgs = new string[3];
+        newArgs[0] = "program_name"; // 模拟程序名称
+        newArgs[1] = "C:\\Users\\duhbb\\Downloads\\20240529151519.gds";                     // gds 文件地址
+        newArgs[2] = fullPath;                                                              // 导出的图片地址
 
-(path-to-python is the full path of the particular python interpreter)
+        // 将参数转换为指针
+        IntPtr argv = Marshal.AllocHGlobal(argc * IntPtr.Size);
+        IntPtr[] argPtrs = new IntPtr[argc];
+        for (int i = 0; i < argc; i++)
+        {
+            argPtrs[i] = Marshal.StringToHGlobalAnsi(newArgs[i]);
+            Marshal.WriteIntPtr(argv, i * IntPtr.Size, argPtrs[i]);
+        }
 
-### Building with a particular Qt version
+        // 调用 DLL 函数
+        int result = api_klayout_main(ref argc, argv);
 
-    ./build.sh -qmake <path-to-qmake>
-
-(path-to-qmake is the full path of the particular qmake installation)
-
-### Building with 64bit coordinate support (experimental)
-
-    ./build.sh -with-64bit-coord
-
-### Pass make options
-
-    ./build.sh -j4
-
-(for running 4 jobs in parallel)
-
-### More options
-
-For more options use
-
-    ./build.sh -h
-
-## Running the Test Suite (Linux)
-
-Go to the build directory (i.e. "bin-release") and enter
-
-    export TESTTMP=testtmp    # path to a directory that will hold temporary data (will be created)
-    export TESTSRC=..         # path to the source directory
-    ./ut_runner
-
-For more options use
-
-    ./ut_runner -h
-
-## Build instructions (Windows, MSYS2)
-
-From the MSYS2 MinGW bash (32 bit or 64 bit) use the same commands as for Linux to build the
-binaries.
-
-## Build instructions (Windows, MSVC 2017)
-
-The combination supported and tested was Qt 5.11/MSVC 2017 64bit.
-It's sufficient to install the build tools from MSVC's community edition.
-
-A build script similar to build.sh is provided for Windows
-(build.bat).
-
-For details about this build script use
-
-```
-build.bat -h
-```
-
-For MSVC builds a number of third party libraries are required:
-
- * Ruby
- * Python
- * zlib
- * expat
- * curl
- * pthread-win
-
-The "klayout-bits4msvc2017" project (https://github.com/klayoutmatthias/klayout_bits4msvc2017) targets towards providing a binary distribution for this purpose.
-See the release notes there for download links. Download the .zip archive from there and unpack it to some folder, e.g. "c:\klayout-bits".
-
-The build script needs the path to this package. "qmake" and (for obtaining the build version) "git" should be in the path. If qmake is not in the path, you can use "build.bat -qmake ..." to specify qmake's path.
-
-Here is an example for the build.bat call:
-
-```
-build.bat -bits c:\klayout-bits
-```
-
-The 3rd party bits kit can also be used to build the Python
-standalone package on setuptools. Specify the full path to the 3rd party package up to the compiler and architecture. On 64bit with the bits package installed in "c:\klayout-bits" the build call is this:
-
-```
-set KLAYOUT_BITS=c:\klayout-bits\msvc2017\x64
-python setup.py build
+        // 释放分配的内存
+        for (int i = 0; i < argc; i++)
+        {
+            Marshal.FreeHGlobal(argPtrs[i]);
+        }
+        Marshal.FreeHGlobal(argv);
+        // 输出返回值
+        Console.WriteLine("Returned value: " + result);
+    }
+}
 ```
