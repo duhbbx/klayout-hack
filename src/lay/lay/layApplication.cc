@@ -1046,6 +1046,8 @@ ApplicationBase::run ()
   lay::MainWindow *mw = main_window ();
   int result = 0;
   reset_config ();
+  set_config(lay::cfg_grid_visible, tl::to_string (false));
+  set_config(lay::cfg_grid_show_ruler, tl::to_string (false));
   db::Manager batch_mode_manager;
   tl::shared_ptr<LayoutView> batch_mode_view;
   batch_mode_view.reset (create_view (batch_mode_manager));
@@ -1062,6 +1064,9 @@ ApplicationBase::run ()
   // 获取当前的 LayoutView
   lay::LayoutView *lv = lay::LayoutView::current();
   const lay::CellView& activeCellView = lv->active_cellview();
+
+  
+  
   lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
   std::cout << "zoom fit..................................." << std::endl;
   batch_mode_view->set_active_cellview_index (0);
@@ -1080,7 +1085,7 @@ ApplicationBase::run ()
   db::Layout* ly = cv.cell()->layout();
   const db::Cell &top_cell = ly->cell (*ly->begin_top_down ());
   const db::Box bbox = top_cell.bbox();
-  int width = 2000;
+  int width = 20000;
 
   double layout_size_x = bbox.width();
   double layout_size_y = bbox.height();
@@ -1097,8 +1102,28 @@ ApplicationBase::run ()
   lv->commit ();
   std::cout << "get cell view's layout ..................." << std::endl;
   // lv->save_image_with_options();
-  std::cout << "EXPORT image path: " << this->export_img_path;
-  lv->save_image(this->export_img_path, width, height);
+  std::cout << "EXPORT image path: " << this->export_img_path << std::endl;
+  // 保存成图片
+  // 这个也能保存成图片
+  // lv->save_image(this->export_img_path, width, height);
+
+  tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(width, 
+                                                                   height, 
+                                                                   1, 
+                                                                   0,
+                                                                   0,
+                                                                   tl::Color(0xFF, 0xFF, 0xFF), 
+                                                                   tl::Color(0x00, 0x00, 0x00), 
+                                                                   tl::Color(0x00, 0x00, 0x00),
+                                                                   lv->viewport().target_box());
+  QImage qImage = pixelBuffer.to_image();
+  // 保存 QImage 为 BMP 文件
+  if (qImage.save(QString::fromStdString(this->export_img_path), "BMP")) {
+      std::cout << "Image saved successfully." << std::endl;
+  } else {
+      std::cout << "Failed to save image." << std::endl;
+  }
+
   std::cout << "image saved success .................." << std::endl;
 
   if (m_files.size() == 0) {

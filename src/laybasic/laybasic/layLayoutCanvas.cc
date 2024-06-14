@@ -833,6 +833,15 @@ LayoutCanvas::image_with_options_mono (unsigned int width, unsigned int height, 
     linewidth = 1;
   }
 
+  if (!background_c.is_valid ()) {
+    std::cout << "BACKGROUND color is invalid" << std::endl;
+  }
+  if (!foreground_c.is_valid ()) {
+    std::cout << "FOREGROUND color is invalid" << std::endl;
+  }
+  if (!active_c.is_valid ()) {
+    std::cout << "ACTIVE color is invalid" << std::endl;
+  }
   bool background = background_c.is_valid () ? background_c.to_mono () : background_color ().to_mono ();
   bool foreground = foreground_c.is_valid () ? foreground_c.to_mono () : foreground_color ().to_mono ();
   bool active = active_c.is_valid () ? active_c.to_mono () : active_color ().to_mono ();

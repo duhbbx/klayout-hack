@@ -318,8 +318,9 @@ int
 api_klayout_main_cont (int &argc, char **argv)
 {
 
+  std::cout << "Here we print external parameters: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
   for (int i = 0; i < argc; ++i) {
-    std::cout << "参数[" << i << "] is: " << argv[i] << std::endl;
+    std::cout << "Parameter [" << i << "] is: " << argv[i] << std::endl;
   }
 #if QT_VERSION >= 0x050000
   qInstallMessageHandler (api_custom_message_handler);
