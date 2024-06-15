@@ -27,7 +27,7 @@
 #include "layCommon.h"
 #include "layBusy.h"
 #include "tlEvents.h"
-
+#include "ImageExportOption.h"
 #include <QApplication>
 #include <QEventLoop>
 #ifdef __APPLE__
@@ -335,8 +335,7 @@ protected:
   virtual void process_events_impl (QEventLoop::ProcessEventsFlags flags, bool silent = false);
 
 public:
-  std::string m_outer_file_path;
-  std::string export_img_path;
+  const ImageExportOption* option;
 private:
   std::vector<std::string> scan_global_modules ();
   lay::LayoutView *create_view (db::Manager &manager);

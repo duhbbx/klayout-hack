@@ -20,7 +20,7 @@
 
 */
 
-
+#include "ImageExportOption.h"
 #include "layApplication.h"
 #include "layFileDialog.h"
 #include "layVersion.h"
@@ -137,7 +137,7 @@ void api_custom_message_handler(QtMsgType type, const char *msg)
 }
 #endif
 
-static int api_klayout_main_cont (int &argc, char **argv);
+static int api_klayout_main_cont (const ImageExportOption& option);
 
 namespace {
 
@@ -222,9 +222,19 @@ extern "C" {
  */
 DLL_EXPORT
 int
-api_klayout_main (int &argc, char **argv)
+api_klayout_main (const ImageExportOption& option)
 {
+  {
+    std::cout << "Import File Path: " << option.importFilePath << std::endl;
+    std::cout << "Import File Type: " << option.importFileType << std::endl;
+    std::cout << "Export File Path: " << option.exportFilePath << std::endl;
+    std::cout << "Export Image Type: " << option.exportImageType << std::endl;
+    std::cout << "Width: " << option.width << std::endl;
+    std::cout << "Coordinates: (" << option.x1 << ", " << option.y1 << ") to (" << option.x2 << ", " << option.y2 << ")" << std::endl;
 
+  }
+  int argc = 0;
+  char **argv = nullptr;
   //  install the version strings
   lay::Version::set_exe_name (prg_exe_name);
   lay::Version::set_name (prg_name);
@@ -277,9 +287,10 @@ api_klayout_main (int &argc, char **argv)
 
   }
 
-  //  This special initialization is required by the Ruby interpreter because it wants to mark the stack
-  int ret = rba::RubyInterpreter::initialize (argc, argv, &api_klayout_main_cont);
 
+  //  This special initialization is required by the Ruby interpreter because it wants to mark the stack
+  // int ret = rba::RubyInterpreter::initialize (argc, argv, &api_klayout_main_cont);
+  int ret = api_klayout_main_cont(option);
   //  clean up all static data now, since we don't trust the static destructors.
   //  NOTE: this needs to happen after the Ruby interpreter went down since otherwise the GC will
   //  access objects that are already cleaned up.
@@ -315,13 +326,10 @@ int api_print_current_time() {
 
 
 int 
-api_klayout_main_cont (int &argc, char **argv)
+api_klayout_main_cont (const ImageExportOption& option)
 {
 
-  std::cout << "Here we print external parameters: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
-  for (int i = 0; i < argc; ++i) {
-    std::cout << "Parameter [" << i << "] is: " << argv[i] << std::endl;
-  }
+
 #if QT_VERSION >= 0x050000
   qInstallMessageHandler (api_custom_message_handler);
 #else
@@ -341,17 +349,14 @@ api_klayout_main_cont (int &argc, char **argv)
 
     std::unique_ptr<lay::ApplicationBase> app;
 
+    int argc = 0;
     std::cout << "create no gui mode application.................................." << std::endl;
-    for (int i = 0; i < argc; ++i) {
-      std::cout <<"parameter[ " << i << "] is: " << argv[i] << std::endl;
-    }
-    app.reset (new lay::NonGuiApplication (argc, argv));
+    app.reset (new lay::NonGuiApplication (argc, nullptr));
     std::cout << "we can write code here.............." << std::endl;
 
     // initialize the application
     // 索引为1的参数是文件地址
-    app->m_outer_file_path = argv[1];
-    app->export_img_path = argv[2];
+    app->option = &option;
     app->init_app ();
     result = app->run ();
   } catch (tl::ExitException &ex) {

@@ -1058,8 +1058,30 @@ ApplicationBase::run ()
   } else {
     std::cout << "m_no_gui is false" << std::endl;
   }
-  std::string temp = this->m_outer_file_path;
+  std::string temp = this->option->importFilePath;
   std::cout << "File to load is: " << temp;
+
+  if (strcasecmp("gsd", this->option->importFileType) == 0) {
+    return 1; // 暂时只支持导入gsd文件
+  }
+
+  if (strcasecmp("bmp", this->option->exportImageType) != 0 && strcasecmp("png", this->option->exportImageType) != 0) {
+    return 2; // 暂时只支持导出png和bmp文件
+  }
+
+  double x1 = this->option->x1;
+  double y1 = this->option->y1;
+  double x2 = this->option->x2;
+  double y2 = this->option->y2;
+
+  if (x1 > x2 || y1 > y2) {
+    return 3; // 范围参数不合适
+  }
+
+  if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0) {
+    return 3;
+  }
+
   batch_mode_view.get()->load_layout(temp, false);
   // 获取当前的 LayoutView
   lay::LayoutView *lv = lay::LayoutView::current();
@@ -1085,7 +1107,13 @@ ApplicationBase::run ()
   db::Layout* ly = cv.cell()->layout();
   const db::Cell &top_cell = ly->cell (*ly->begin_top_down ());
   const db::Box bbox = top_cell.bbox();
-  int width = 20000;
+  int width = this->option->width;
+  if (width <= 0) {
+    width = x2 - x1;
+  }
+  if (width <= 0) {
+    return 4;  // 宽度不合适
+  }
 
   double layout_size_x = bbox.width();
   double layout_size_y = bbox.height();
@@ -1102,26 +1130,34 @@ ApplicationBase::run ()
   lv->commit ();
   std::cout << "get cell view's layout ..................." << std::endl;
   // lv->save_image_with_options();
-  std::cout << "EXPORT image path: " << this->export_img_path << std::endl;
+  std::cout << "EXPORT image path: " << this->option->exportFilePath << std::endl;
   // 保存成图片
   // 这个也能保存成图片
   // lv->save_image(this->export_img_path, width, height);
 
+  db::DBox fullBox = lv->viewport().target_box();
+  fullBox.set_left(std::max(x1, fullBox.left()));
+  fullBox.set_top(std::max(y1, fullBox.top()));
+  fullBox.set_right(std::min(x2, fullBox.right()));
+  fullBox.set_bottom(std::min(y2, fullBox.bottom()));
+
+
   tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(width, 
-                                                                   height, 
-                                                                   1, 
-                                                                   0,
-                                                                   0,
-                                                                   tl::Color(0xFF, 0xFF, 0xFF), 
-                                                                   tl::Color(0x00, 0x00, 0x00), 
-                                                                   tl::Color(0x00, 0x00, 0x00),
-                                                                   lv->viewport().target_box());
+                                                            height, 
+                                                            1, 
+                                                            0,
+                                                            0,
+                                                            tl::Color(0xFF, 0xFF, 0xFF), 
+                                                            tl::Color(0x00, 0x00, 0x00), 
+                                                            tl::Color(0x00, 0x00, 0x00),
+                                                            fullBox);
   QImage qImage = pixelBuffer.to_image();
   // 保存 QImage 为 BMP 文件
-  if (qImage.save(QString::fromStdString(this->export_img_path), "BMP")) {
+  if (qImage.save(QString::fromStdString(this->option->exportFilePath), this->option->exportImageType)) {
       std::cout << "Image saved successfully." << std::endl;
   } else {
       std::cout << "Failed to save image." << std::endl;
+      return 5;       // 图片导出失败了
   }
 
   std::cout << "image saved success .................." << std::endl;

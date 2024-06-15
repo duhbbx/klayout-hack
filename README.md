@@ -52,47 +52,87 @@ mingw 64 的bin目录和klayout 构建后的 bin-release目录都加入到环境
 using System;
 using System.Runtime.InteropServices;
 
+using System;
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential)]
+public struct ImageExportOption
+{
+    /// <summary>
+    /// 待导入的文件地址
+    /// </summary>
+    [MarshalAs(UnmanagedType.LPStr)]
+    public string importFilePath;
+    /// <summary>
+    /// 导入的文件类型
+    /// </summary>
+    [MarshalAs(UnmanagedType.LPStr)]
+    public string importFileType;
+    /// <summary>
+    /// 到处的图片地址
+    /// </summary>
+    [MarshalAs(UnmanagedType.LPStr)] 
+    public string exportFilePath;
+    /// <summary>
+    /// 导出的图片类型
+    /// </summary>
+    [MarshalAs(UnmanagedType.LPStr)]
+    public string exportImageType;
+    /// <summary>
+    /// 以什么宽度缩放
+    /// </summary>
+    public int width;
+
+    /// <summary>
+    /// 左上角的x1地址
+    /// </summary>
+    public int x1;
+    /// <summary>
+    /// 左上角的y1
+    /// </summary>
+    public int y1;
+    /// <summary>
+    /// 右下角的x2
+    /// </summary>
+    public int x2;
+    /// <summary>
+    /// 右下角的y2
+    /// </summary>
+    public int y2;
+
+}
+
+
 class Program
 {
     // 定义 API 函数
+    // 这个是 c# 代码
     [DllImport("D:\\msys64\\home\\duhbb\\klayout\\bin-release\\klayout_exportapi.dll", CallingConvention = CallingConvention.Cdecl)]
-    public static extern int api_klayout_main(ref int argc, IntPtr argv);
+    public static extern int api_klayout_main(ImageExportOption option);
 
     static void Main(string[] args)
     {
         string directory = @"C:\Users\duhbb\Downloads\";
-        string fileName = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".png";
-
+        string fileName = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".bmp";
         string fullPath = Path.Combine(directory, fileName);
-
         Console.WriteLine("Export path: " + fullPath);
-        // 准备参数
-        int argc = 3; // 额外加一个是程序名称
-        string[] newArgs = new string[3];
-        newArgs[0] = "program_name"; // 模拟程序名称
-        newArgs[1] = "C:\\Users\\duhbb\\Downloads\\20240529151519.gds";                     // gds 文件地址
-        newArgs[2] = fullPath;                                                              // 导出的图片地址
-
-        // 将参数转换为指针
-        IntPtr argv = Marshal.AllocHGlobal(argc * IntPtr.Size);
-        IntPtr[] argPtrs = new IntPtr[argc];
-        for (int i = 0; i < argc; i++)
+        ImageExportOption option = new ImageExportOption
         {
-            argPtrs[i] = Marshal.StringToHGlobalAnsi(newArgs[i]);
-            Marshal.WriteIntPtr(argv, i * IntPtr.Size, argPtrs[i]);
-        }
-
+            importFilePath = "C:\\Users\\duhbb\\Downloads\\20240529151519.gds",
+            importFileType = "gds",
+            exportFilePath = fullPath,
+            exportImageType = "bmp",
+            width = 10000,
+            x1 = 0,
+            y1 = 0,
+            x2 = 0,
+            y2 = 0,
+        };
         // 调用 DLL 函数
-        int result = api_klayout_main(ref argc, argv);
-
-        // 释放分配的内存
-        for (int i = 0; i < argc; i++)
-        {
-            Marshal.FreeHGlobal(argPtrs[i]);
-        }
-        Marshal.FreeHGlobal(argv);
+        int result = api_klayout_main(option);
         // 输出返回值
-        Console.WriteLine("Returned value: " + result);
+        Console.WriteLine("\nReturned value: " + result);
     }
 }
+
 ```
