@@ -1039,56 +1039,11 @@ ApplicationBase::usage ()
   return r;
 }
 
-int
-ApplicationBase::run ()
-{
-  std::cout << "ApplicationBase::run ...................." << std::endl;
-  lay::MainWindow *mw = main_window ();
-  int result = 0;
-  reset_config ();
-  set_config(lay::cfg_grid_visible, tl::to_string (false));
-  set_config(lay::cfg_grid_show_ruler, tl::to_string (false));
-  db::Manager batch_mode_manager;
-  tl::shared_ptr<LayoutView> batch_mode_view;
-  batch_mode_view.reset (create_view (batch_mode_manager));
-  boolean add_cellview;
-  std::cout << "ready to load layout.............................." << std::endl;
-  if (m_no_gui) {
-    std::cout << "m_no_gui is true" << std::endl;
-  } else {
-    std::cout << "m_no_gui is false" << std::endl;
-  }
-  std::string temp = this->option->importFilePath;
-  std::cout << "File to load is: " << temp;
 
-  if (strcasecmp("gsd", this->option->importFileType) == 0) {
-    return 1; // 暂时只支持导入gsd文件
-  }
-
-  if (strcasecmp("bmp", this->option->exportImageType) != 0 && strcasecmp("png", this->option->exportImageType) != 0) {
-    return 2; // 暂时只支持导出png和bmp文件
-  }
-
-  double x1 = this->option->x1;
-  double y1 = this->option->y1;
-  double x2 = this->option->x2;
-  double y2 = this->option->y2;
-
-  if (x1 > x2 || y1 > y2) {
-    return 3; // 范围参数不合适
-  }
-
-  if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0) {
-    return 3;
-  }
-
-  batch_mode_view.get()->load_layout(temp, false);
+int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageExportOption) {
   // 获取当前的 LayoutView
   lay::LayoutView *lv = lay::LayoutView::current();
   const lay::CellView& activeCellView = lv->active_cellview();
-
-  
-  
   lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
   std::cout << "zoom fit..................................." << std::endl;
   batch_mode_view->set_active_cellview_index (0);
@@ -1106,54 +1061,94 @@ ApplicationBase::run ()
   // db::Layout* ly1 = cv.layout();
   db::Layout* ly = cv.cell()->layout();
   const db::Cell &top_cell = ly->cell (*ly->begin_top_down ());
-  const db::Box bbox = top_cell.bbox();
-  int width = this->option->width;
-  if (width <= 0) {
-    width = x2 - x1;
-  }
-  if (width <= 0) {
-    return 4;  // 宽度不合适
+  // const db::Box bbox = top_cell.bbox();
+  db::DBox fullBox = lv->viewport().target_box();
+
+  int width = imageExportOption->width;
+  int height = imageExportOption->height;
+
+  if (strcasecmp("bmp", imageExportOption->exportImageType) != 0 && strcasecmp("png", imageExportOption->exportImageType) != 0) {
+    return WRONG_EXPORT_FILE_TYPE; // 暂时只支持导出png和bmp文件
   }
 
-  double layout_size_x = bbox.width();
-  double layout_size_y = bbox.height();
-  int height = (int) ((1.0 * width * layout_size_y) / layout_size_x);
+  double x1 = imageExportOption->x1;
+  double y1 = imageExportOption->y1;
+  double x2 = imageExportOption->x2;
+  double y2 = imageExportOption->y2;
 
-  
-  for (lay::LayerPropertiesConstIterator l = lv->begin_layers (); !l.at_end (); ++l) {
+  std::cout << "x1 = " << x1 << std::endl;
+  std::cout << "y1 = " << y1 << std::endl;
+  std::cout << "x2 = " << x2 << std::endl;
+  std::cout << "y2 = " << y2 << std::endl;
+
+  // if (x1 > x2 || y2 > y1) {
+  //   return BOX_PARAMETER_ERROR; // 范围参数不合适
+  // }
+
+  double layout_size_x = fullBox.width();
+  double layout_size_y = fullBox.height();
+  std::cout << "current view width is " << layout_size_x << std::endl;
+  std::cout << "current view heigh is " << layout_size_y << std::endl;
+
+  if (width <= 0) {
+    return 110;
+    
+  }
+  if (height <= 0) {
+    return 111;
+  }
+ 
+  for (lay::LayerPropertiesConstIterator l = lv->begin_layers(); !l.at_end (); ++l) {
     std::cout << "set visible = true ################################" << std::endl;
-    l->visible (true /*real*/);
+    lay::LayerProperties p = *l;
+    p.set_visible (true);
+    p.set_fill_color(0xFFFFFF);
+    p.set_dither_pattern(0);
+    p.set_frame_color(0xFFFFFF);
+    lv->set_properties(l, p);
   }
 
   lv->transaction (tl::to_string (tr ("Show all cells")));
   lv->show_all_cells ();
   lv->commit ();
   std::cout << "get cell view's layout ..................." << std::endl;
-  // lv->save_image_with_options();
-  std::cout << "EXPORT image path: " << this->option->exportFilePath << std::endl;
-  // 保存成图片
-  // 这个也能保存成图片
-  // lv->save_image(this->export_img_path, width, height);
+  std::cout << "EXPORT image path: " << imageExportOption->exportFilePath << std::endl;
 
-  db::DBox fullBox = lv->viewport().target_box();
+
+
+  std::cout << "export range left = " << fullBox.left() << std::endl;
+  std::cout << "export range top = " << fullBox.top() << std::endl;
+  std::cout << "export range right = " << fullBox.right() << std::endl;
+  std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
+
+  std::cout << "###################################################" << std::endl;
   fullBox.set_left(std::max(x1, fullBox.left()));
-  fullBox.set_top(std::max(y1, fullBox.top()));
+  fullBox.set_top(std::min(y1, fullBox.top()));
   fullBox.set_right(std::min(x2, fullBox.right()));
-  fullBox.set_bottom(std::min(y2, fullBox.bottom()));
+  fullBox.set_bottom(std::max(y2, fullBox.bottom()));
 
+  std::cout << "calculate a new box, full box compared with provided range............" << std::endl;
 
-  tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(width, 
-                                                            height, 
-                                                            1, 
-                                                            0,
-                                                            0,
-                                                            tl::Color(0xFF, 0xFF, 0xFF), 
-                                                            tl::Color(0x00, 0x00, 0x00), 
-                                                            tl::Color(0x00, 0x00, 0x00),
-                                                            fullBox);
+  std::cout << "export range left = " << fullBox.left() << std::endl;
+  std::cout << "export range top = " << fullBox.top() << std::endl;
+  std::cout << "export range right = " << fullBox.right() << std::endl;
+  std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
+
+  tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(
+    width, 
+    height, 
+    imageExportOption->linewidth <= 0 ? 1 : imageExportOption->linewidth, 
+    imageExportOption->oversampling <= 0 ? 0 : imageExportOption->oversampling,
+    imageExportOption->resolution <= 0 ? 0 : imageExportOption->resolution,
+    tl::Color(), 
+    tl::Color(), 
+    tl::Color(),
+    fullBox);
+  std::cout << "successfully get pixel buffer ......................." << std::endl;                                                            
   QImage qImage = pixelBuffer.to_image();
+  std::cout << "convert to QT image ................." << std::endl;
   // 保存 QImage 为 BMP 文件
-  if (qImage.save(QString::fromStdString(this->option->exportFilePath), this->option->exportImageType)) {
+  if (qImage.save(QString::fromStdString(imageExportOption->exportFilePath), imageExportOption->exportImageType)) {
       std::cout << "Image saved successfully." << std::endl;
   } else {
       std::cout << "Failed to save image." << std::endl;
@@ -1161,71 +1156,45 @@ ApplicationBase::run ()
   }
 
   std::cout << "image saved success .................." << std::endl;
+  return 0;
+}
 
-  if (m_files.size() == 0) {
-    std::cout << "NO FILES in m_files........................." << std::endl;
-  }
-
-  for (std::vector <std::pair<file_type, std::pair<std::string, std::string> > >::const_iterator f = m_files.begin (); f != m_files.end (); ++f) {
-
-    if (f->first == layout_file || f->first == layout_file_with_tech) {
-
-      std::string filename = f->second.first;
-
-      if (batch_mode_view.get () != 0 && ! m_same_view) {
-        tl::warn << tl::sprintf (tl::to_string (tr ("Ignoring additional views in batch mode (file %s)")), filename);
-        continue;
-      }
-
-      if (! batch_mode_view) {
-        batch_mode_view.reset (create_view (batch_mode_manager));
-      }
-
-      if (f->first != layout_file_with_tech) {
-        batch_mode_view->load_layout (f->second.first, true);
-      } else {
-        batch_mode_view->load_layout (f->second.first, f->second.second, true);
-      }
-
-      //  Make the first one loaded the active one.
-      batch_mode_view->set_active_cellview_index (0);
-
-    } else if (f->first == rdb_file) {
-
-      if (! batch_mode_view) {
-        batch_mode_view.reset (create_view (batch_mode_manager));
-      }
-
-      std::unique_ptr <rdb::Database> db (new rdb::Database ());
-      db->load (f->second.first);
-      batch_mode_view->add_rdb (db.release ());
-
-    } else if (f->first == l2ndb_file) {
-
-      if (! batch_mode_view) {
-        batch_mode_view.reset (create_view (batch_mode_manager));
-      }
-
-      batch_mode_view->add_l2ndb (db::LayoutToNetlist::create_from_file (f->second.first));
-
-    }
-  }
-
-  if (! m_layer_props_file.empty () && batch_mode_view.get ()) {
-
-    batch_mode_view->load_layer_props (m_layer_props_file, m_lyp_add_default);
-
-    tl::log << "Layer properties loaded '" << m_layer_props_file << "'";
-
-    //  because the layer may carry transformations, we need to refit the cellviews.
-    batch_mode_view->zoom_fit ();
-
-  } else {
-    std::cout << "origin: no props or empty layout view" << std::endl;
-  }
-
+int ApplicationBase::loadFileForApi(const char* file) {
+  batch_mode_view.reset (create_view ());
+  boolean add_cellview;
+  std::cout << "ready to load layout.............................." << std::endl;
+  const std::string temp = file;
+  std::cout << "File to load is: " << temp;
+  batch_mode_view.get()->load_layout(temp, false);
+  // 获取当前的 LayoutView
+  lay::LayoutView *lv = lay::LayoutView::current();
+  const lay::CellView& activeCellView = lv->active_cellview();
   
+  lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
+  std::cout << "zoom fit..................................." << std::endl;
+  batch_mode_view->set_active_cellview_index (0);
+  batch_mode_view->zoom_fit ();
+  std::cout << "zoom fit finish" << std::endl;
+  return 0;
+}
 
+int ApplicationBase::getBoxForApi(ApiBox* apiBox) {
+  lay::LayoutView *lv = lay::LayoutView::current();
+  if (!lv) {
+    return 1;
+  }
+  db::DBox fullBox = lv->viewport().target_box();
+  apiBox->x1 = fullBox.left();
+  apiBox->y1= fullBox.top();
+  apiBox->x2 = fullBox.right();
+  apiBox->y2 = fullBox.bottom();
+  return 0;
+}
+
+int
+ApplicationBase::run ()
+{
+  int result = 0;
   //  Give the plugins a change to do some last-minute initialisation and checks
   if (dispatcher ()) {
     for (tl::Registrar<lay::PluginDeclaration>::iterator cls = tl::Registrar<lay::PluginDeclaration>::begin (); cls != tl::Registrar<lay::PluginDeclaration>::end (); ++cls) {
@@ -1234,24 +1203,17 @@ ApplicationBase::run ()
     }
   }
 
-  if (mw && ! m_no_gui && m_gtf_replay.empty () && m_gtf_record.empty ()) {
-    //  Show initial tip window if required
-    mw->about_to_exec ();
-  }
-
   result = exec ();
   finish ();
   batch_mode_view.reset (0);
-
-  std::cout << "seems end here ..........................." << std::endl;
   return result;
 }
 
 lay::LayoutView *
-ApplicationBase::create_view (db::Manager &manager)
+ApplicationBase::create_view ()
 {
   //  create a new view
-  lay::LayoutView *view = new lay::LayoutView (&manager, lay::ApplicationBase::instance ()->is_editable (), dispatcher ());
+  lay::LayoutView *view = new lay::LayoutView (&batch_mode_manager, lay::ApplicationBase::instance ()->is_editable (), dispatcher ());
 
   std::cout << "after new a view in create_view......................" << std::endl;
   //  set initial attributes
@@ -1262,9 +1224,7 @@ ApplicationBase::create_view (db::Manager &manager)
   int tl = 0;
   // dispatcher ()->config_get (cfg_initial_hier_depth, tl);
   view->set_hier_levels (std::make_pair (0, tl));
-  std::cout << "set_hier_levels............................" << std::endl;
   view->set_current ();
-  std::cout << "set_current............................" << std::endl;
   return view;
 }
 
@@ -1334,6 +1294,9 @@ ApplicationBase::reset_config ()
       read_config (*c);
     } catch (...) { }
   }
+  // 去掉网格和ruler
+  set_config(lay::cfg_grid_visible, tl::to_string (false));
+  set_config(lay::cfg_grid_show_ruler, tl::to_string (false));
 }
 
 void 

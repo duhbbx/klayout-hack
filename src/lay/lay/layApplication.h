@@ -28,6 +28,7 @@
 #include "layBusy.h"
 #include "tlEvents.h"
 #include "ImageExportOption.h"
+#include "dbManager.h"
 #include <QApplication>
 #include <QEventLoop>
 #ifdef __APPLE__
@@ -80,6 +81,11 @@ class LAY_PUBLIC ApplicationBase
   : public gsi::ObjectBase, public tl::Object
 {
 public:
+  db::Manager batch_mode_manager;
+  tl::shared_ptr<LayoutView> batch_mode_view;
+  int getBoxForApi(ApiBox* apiBox);
+  int loadFileForApi(const char* file);
+  int exportToImageForApi(const struct ImageExportOption* option);
   /**
    *  @brief The application constructor
    *
@@ -334,11 +340,9 @@ protected:
   virtual void finish ();
   virtual void process_events_impl (QEventLoop::ProcessEventsFlags flags, bool silent = false);
 
-public:
-  const ImageExportOption* option;
 private:
   std::vector<std::string> scan_global_modules ();
-  lay::LayoutView *create_view (db::Manager &manager);
+  lay::LayoutView *create_view ();
 
   enum file_type {
     layout_file,

@@ -7,6 +7,7 @@ include($$PWD/../../lib.pri)
 DEFINES += MAKE_LAY_LIBRARY
 
 HEADERS = \
+    ImageExportOption.h \
     layApplication.h \
     layClipDialog.h \
     layControlWidgetStack.h \

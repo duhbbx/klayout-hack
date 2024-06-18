@@ -758,7 +758,9 @@ LayoutCanvas::image (unsigned int width, unsigned int height)
 }
 
 tl::PixelBuffer
-LayoutCanvas::image_with_options (unsigned int width, unsigned int height, int linewidth, int oversampling, double resolution, tl::Color background, tl::Color foreground, tl::Color active, const db::DBox &target_box)
+LayoutCanvas::image_with_options (unsigned int width, unsigned int height, 
+int linewidth, int oversampling, double resolution, tl::Color background, tl::Color foreground, tl::Color active, 
+const db::DBox &target_box)
 {
   if (oversampling <= 0) {
     oversampling = m_oversampling;
@@ -811,7 +813,8 @@ LayoutCanvas::image_with_options (unsigned int width, unsigned int height, int l
   do_render_bg (vp, vo_canvas);
 
   //  paint the layout bitmaps
-  rd_canvas.to_image (scaled_view_ops (linewidth), dither_pattern (), line_styles (), 1.0 / resolution, background, foreground, active, this, *vo_canvas.bg_image (), vp.width (), vp.height ());
+  rd_canvas.to_image (scaled_view_ops (linewidth), dither_pattern (), line_styles (), 1.0 / resolution, 
+  background, foreground, active, this, *vo_canvas.bg_image (), vp.width (), vp.height ());
 
   //  subsample current image to provide the background for the foreground objects
   vo_canvas.make_background ();

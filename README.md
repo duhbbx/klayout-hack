@@ -52,63 +52,72 @@ mingw 64 的bin目录和klayout 构建后的 bin-release目录都加入到环境
 using System;
 using System.Runtime.InteropServices;
 
-using System;
-using System.Runtime.InteropServices;
-
-[StructLayout(LayoutKind.Sequential)]
-public struct ImageExportOption
-{
-    /// <summary>
-    /// 待导入的文件地址
-    /// </summary>
-    [MarshalAs(UnmanagedType.LPStr)]
-    public string importFilePath;
-    /// <summary>
-    /// 导入的文件类型
-    /// </summary>
-    [MarshalAs(UnmanagedType.LPStr)]
-    public string importFileType;
-    /// <summary>
-    /// 到处的图片地址
-    /// </summary>
-    [MarshalAs(UnmanagedType.LPStr)] 
-    public string exportFilePath;
-    /// <summary>
-    /// 导出的图片类型
-    /// </summary>
-    [MarshalAs(UnmanagedType.LPStr)]
-    public string exportImageType;
-    /// <summary>
-    /// 以什么宽度缩放
-    /// </summary>
-    public int width;
-
-    /// <summary>
-    /// 左上角的x1地址
-    /// </summary>
-    public int x1;
-    /// <summary>
-    /// 左上角的y1
-    /// </summary>
-    public int y1;
-    /// <summary>
-    /// 右下角的x2
-    /// </summary>
-    public int x2;
-    /// <summary>
-    /// 右下角的y2
-    /// </summary>
-    public int y2;
-
-}
-
 
 class Program
 {
-    // 定义 API 函数
-    // 这个是 c# 代码
-    [DllImport("D:\\msys64\\home\\duhbb\\klayout\\bin-release\\klayout_exportapi.dll", CallingConvention = CallingConvention.Cdecl)]
-    public static extern int api_klayout_main(ImageExportOption option);
+
+
+    // 定义 HANDLE 类型
+    public IntPtr handle;
+
+    // 加载 DLL
+    // 请替换为你的 DLL 路径
+    const string dllPath = "D:\\msys64\\home\\duhbb\\klayout\\bin-release\\klayout_exportapi.dll"; 
+
+    [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int CreateHandle(out IntPtr handle, bool debug);
+
+    [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int loadFile(IntPtr handle, string file);
+
+    [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int getBox(IntPtr handle, out ApiBox outApiBox);
+
+    [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int exportToImage(IntPtr handle, IntPtr option);
+
+    [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int ReleaseHandle(IntPtr handle);
+
+    // ApiBox 结构体
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ApiBox
+    {
+        public double x1;
+        public double y1;
+        public double x2;
+        public double y2;
+    }
+
+    // ImageExportOption 结构体
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct ImageExportOption
+    {
+        public string exportFilePath;
+        public string exportImageType;
+        public double x1;
+        public double y1;
+        public double x2;
+        public double y2;
+        public double width;
+        public double height;
+        public int linewidth;
+        public int oversampling;
+        public double resolution;
+    }
+
+    // ApiReturnCode 枚举
+    public enum ApiReturnCode
+    {
+        SUCCESS = 0,
+        INIT_HANDLE_IS_NOT_NULLPTR = 1,
+        HANDLE_INSTANCE_IS_NULLPTR = 2,
+        EXCEPTION_1 = 3,
+        EXCEPTION_2 = 4,
+        EXCEPTION_3 = 5,
+        EXCEPTION_4 = 6,
+    }
+
 
     static void Main(string[] args)
     {
@@ -116,23 +125,87 @@ class Program
         string fileName = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".bmp";
         string fullPath = Path.Combine(directory, fileName);
         Console.WriteLine("Export path: " + fullPath);
+        string importFile = "C:\\Users\\duhbb\\Downloads\\20240529151519.gds";
+
+        IntPtr handle;
+
+        // 创建句柄
+        int result = CreateHandle(out handle, true);
+        if (result != (int)ApiReturnCode.SUCCESS)
+        {
+            Console.WriteLine("Failed to create handle. Error code: " + result);
+            return;
+        }
+
+        // 加载文件
+        result = loadFile(handle, importFile);
+        if (result != (int)ApiReturnCode.SUCCESS)
+        {
+            Console.WriteLine("Failed to load file. Error code: " + result);
+            ReleaseHandle(handle);
+            return;
+        }
+
+        // 获取 Box
+        ApiBox apiBox;
+        result = getBox(handle, out apiBox);
+        if (result != (int)ApiReturnCode.SUCCESS)
+        {
+            Console.WriteLine("Failed to get box. Error code: " + result);
+            ReleaseHandle(handle);
+            return;
+        }
+
+        Console.WriteLine("Box: " + apiBox.x1 + ", " + apiBox.y1 + ", " + apiBox.x2 + ", " + apiBox.y2);
+
+        // 导出图片
         ImageExportOption option = new ImageExportOption
         {
-            importFilePath = "C:\\Users\\duhbb\\Downloads\\20240529151519.gds",
-            importFileType = "gds",
             exportFilePath = fullPath,
             exportImageType = "bmp",
-            width = 10000,
-            x1 = 0,
-            y1 = 0,
+            x1 = (int)apiBox.x1,
+            y1 = (int)apiBox.y1,
+            //x2 = (int)apiBox.x2,
+            //y2 = (int)apiBox.y2,
+
             x2 = 0,
             y2 = 0,
+            //x1 = -800,
+            //y1 = 3000,
+            //x2 = 800,
+            //y2 = -3000,
+            width = 10000,
+            height = 10000,
+            linewidth = 1,
+            oversampling = 2,
+            resolution = 0,
         };
-        // 调用 DLL 函数
-        int result = api_klayout_main(option);
-        // 输出返回值
-        Console.WriteLine("\nReturned value: " + result);
+
+        // 注意：需要将结构体指针传递给函数
+        IntPtr optionPtr = Marshal.AllocHGlobal(Marshal.SizeOf(option));
+        Marshal.StructureToPtr(option, optionPtr, false);
+
+        result = exportToImage(handle, optionPtr);
+        Marshal.FreeHGlobal(optionPtr);
+
+        if (result != (int)ApiReturnCode.SUCCESS)
+        {
+            Console.WriteLine("Failed to export image. Error code: " + result);
+            ReleaseHandle(handle);
+            return;
+        }
+
+        // 释放句柄
+        result = ReleaseHandle(handle);
+        if (result != (int)ApiReturnCode.SUCCESS)
+        {
+            Console.WriteLine("Failed to release handle. Error code: " + result);
+            return;
+        }
+
+        Console.WriteLine("Operations completed successfully.");
     }
 }
+
 
 ```

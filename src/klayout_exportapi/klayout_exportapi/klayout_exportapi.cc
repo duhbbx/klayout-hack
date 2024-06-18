@@ -137,8 +137,6 @@ void api_custom_message_handler(QtMsgType type, const char *msg)
 }
 #endif
 
-static int api_klayout_main_cont (const ImageExportOption& option);
-
 namespace {
 
 class ApiLogFileWriter
@@ -214,166 +212,77 @@ static void api_set_log_file (const std::string &log_file)
     #define DLL_EXPORT
 #endif
 
+bool api_debug = false;
+
 extern "C" {
 
-/**
- *  @brief The basic entry point
- *  Note that by definition, klayout_main receives arguments in UTF-8
- */
 DLL_EXPORT
-int
-api_klayout_main (const ImageExportOption& option)
-{
-  {
-    std::cout << "Import File Path: " << option.importFilePath << std::endl;
-    std::cout << "Import File Type: " << option.importFileType << std::endl;
-    std::cout << "Export File Path: " << option.exportFilePath << std::endl;
-    std::cout << "Export Image Type: " << option.exportImageType << std::endl;
-    std::cout << "Width: " << option.width << std::endl;
-    std::cout << "Coordinates: (" << option.x1 << ", " << option.y1 << ") to (" << option.x2 << ", " << option.y2 << ")" << std::endl;
-
-  }
-  int argc = 0;
-  char **argv = nullptr;
-  //  install the version strings
-  lay::Version::set_exe_name (prg_exe_name);
-  lay::Version::set_name (prg_name);
-  lay::Version::set_version (prg_version);
-
-  std::string subversion (prg_date);
-  subversion += " r";
-  subversion += prg_rev;
-  lay::Version::set_subversion (subversion.c_str ());
-
-  std::string about_text (prg_author);
-  about_text += "\n";
-  about_text += prg_date;
-  about_text += " r";
-  about_text += prg_rev;
-  about_text += "\n";
-  about_text += "\n";
-  about_text += prg_about_text;
-  lay::Version::set_about_text (about_text.c_str ());
-
-  //  Capture the shortcut command line arguments, log file and the verbosity settings
-  //  for early errors and warnings
-
-  for (int i = 1; i < argc; ++i) {
-
-    if (argv [i] == std::string ("-v")) {
-
-      tl::info << lay::ApplicationBase::version ();
-      return 0;
-
-    } else if (argv [i] == std::string ("-h")) {
-
-      tl::info << lay::ApplicationBase::usage () << tl::noendl;
-      return 0;
-
-    } else if (argv [i] == std::string ("-k") && (i + 1) < argc) {
-
-      api_set_log_file (argv [++i]);
-
-    } else if (argv [i] == std::string ("-d") && (i + 1) < argc) {
-
-      int v = 0;
-      tl::from_string (argv [++i], v);
-      if (v < 0) {
-        v = 0;
-      }
-      tl::verbosity (v);
-
-    }
-
-  }
-
-
-  //  This special initialization is required by the Ruby interpreter because it wants to mark the stack
-  // int ret = rba::RubyInterpreter::initialize (argc, argv, &api_klayout_main_cont);
-  int ret = api_klayout_main_cont(option);
-  //  clean up all static data now, since we don't trust the static destructors.
-  //  NOTE: this needs to happen after the Ruby interpreter went down since otherwise the GC will
-  //  access objects that are already cleaned up.
-  tl::StaticObjects::cleanup ();
-
-  return ret;
-}
-}
-
-
-#include <iostream>
-#include <chrono>
-#include <iomanip>
-#include <ctime>
-
-
-int api_print_current_time() {
-    // 获取当前的系统时间
-    auto now = std::chrono::system_clock::now();
-
-    // 将系统时间转换为time_t以便进一步处理
-    std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
-
-    // 将time_t转换为tm结构
-    std::tm now_tm = *std::localtime(&now_time_t);
-
-    // 输出日期和时间
-    std::cout << "Current date and time: "
-              << std::put_time(&now_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
-
-    return 0;
-}
-
-
-int 
-api_klayout_main_cont (const ImageExportOption& option)
-{
-
-
-#if QT_VERSION >= 0x050000
-  qInstallMessageHandler (api_custom_message_handler);
-#else
-  qInstallMsgHandler (api_custom_message_handler);
-#endif
-
+int CreateHandle(HANDLE* handle, bool debug) {
+  api_debug = true;
   int result = 0;
-
-  api_print_current_time();
-
   try {
-
+    if (!handle) {
+      DEBUG_PRINTF("init handle for output is nullptr, %p", static_cast<void*>(handle));
+      return INIT_HANDLE_IS_NOT_NULLPTR;
+    }
     //  this registers the gsi definitions
     gsi::initialize_external ();
-
-    bool non_ui_mode = true;
-
-    std::unique_ptr<lay::ApplicationBase> app;
-
+    DEBUG_PRINTF("this registers the gsi definitions: gsi::initialize_external ()");
     int argc = 0;
-    std::cout << "create no gui mode application.................................." << std::endl;
-    app.reset (new lay::NonGuiApplication (argc, nullptr));
-    std::cout << "we can write code here.............." << std::endl;
-
-    // initialize the application
-    // 索引为1的参数是文件地址
-    app->option = &option;
+    lay::NonGuiApplication* app = new lay::NonGuiApplication (argc, nullptr);
+    DEBUG_PRINTF("CREATE non gui application instance.............................");
     app->init_app ();
-    result = app->run ();
+    DEBUG_PRINTF("app->init_app () SUCCESS");
+    app->reset_config ();
+    DEBUG_PRINTF("reset_config () SUCCESS");
+    DEBUG_PRINTF("SET no grid, no ruler...............SUCCESS");
+    *handle = app;
+    return (*handle != nullptr) ? SUCCESS : HANDLE_INSTANCE_IS_NULLPTR;
   } catch (tl::ExitException &ex) {
-    result = ex.status ();
+    DEBUG_PRINTF("tl::ExitException &ex, status = %d", ex.status ());
+    result = EXCEPTION_1;
   } catch (std::exception &ex) {
-    tl::error << ex.what ();
-    result = 1;
+    DEBUG_PRINTF("std::exception &ex, ex.what () = %s", ex.what ());
+    result = EXCEPTION_2;
   } catch (tl::Exception &ex) {
     tl::error << ex.msg ();
-    result = 1;
+    DEBUG_PRINTF("tl::Exception &ex, ex.msg () = %s", ex.msg ());
+    result = EXCEPTION_3;
   } catch (...) {
     tl::error << tl::to_string (QObject::tr ("unspecific error"));
-    result = 1;
+    DEBUG_PRINTF("tl::to_string (QObject::tr (\"unspecific error\")) = %s", tl::to_string (QObject::tr ("unspecific error")).c_str());
+    result = EXCEPTION_4;
   }
-
-  return result;
-
 }
 
+// 获取对象的值
+DLL_EXPORT
+int loadFile(HANDLE handle, const char* file) {
+  lay::NonGuiApplication* app = (lay::NonGuiApplication*) handle;
+  return app->loadFileForApi(file);
+}
 
+DLL_EXPORT
+int getBox(HANDLE handle, ApiBox* outApiBox) {
+    lay::NonGuiApplication* app = (lay::NonGuiApplication*) handle;
+    return app->getBoxForApi(outApiBox);
+}
+
+DLL_EXPORT
+int exportToImage(HANDLE handle, const struct ImageExportOption * option) {
+  lay::NonGuiApplication* app = (lay::NonGuiApplication*) handle;
+  return app->exportToImageForApi(option);
+}
+
+DLL_EXPORT
+int ReleaseHandle(HANDLE handle) {
+  if (!handle) {
+    return 1;
+  }
+  lay::NonGuiApplication* app = (lay::NonGuiApplication*) handle;
+  app->run();
+  delete app;
+  tl::StaticObjects::cleanup ();
+  return 0;
+}
+}
