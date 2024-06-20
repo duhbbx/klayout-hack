@@ -18,7 +18,6 @@ SUBDIRS = \
   ant \
   img \
   edt \
-  klayout_exportapi \
 
 
 equals(HAVE_RUBY, "1") {
@@ -116,6 +115,7 @@ equals(HAVE_RUBY, "1") {
   plugins.depends += lay
 
   klayout_main.depends += doc icons plugins $$MAIN_DEPENDS
+  klayout_exportapi.depends += doc icons plugins $$MAIN_DEPENDS
 
 } else {
 

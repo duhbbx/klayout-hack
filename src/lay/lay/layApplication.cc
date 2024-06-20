@@ -76,6 +76,7 @@
 #include <iostream>
 #include <memory>
 #include <algorithm>
+#include <cstdlib>
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -1156,6 +1157,116 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
   }
 
   std::cout << "image saved success .................." << std::endl;
+  return 0;
+}
+
+int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption, unsigned char ** p, int * length) {
+  // 获取当前的 LayoutView
+  lay::LayoutView *lv = lay::LayoutView::current();
+  const lay::CellView& activeCellView = lv->active_cellview();
+  lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
+  std::cout << "zoom fit..................................." << std::endl;
+  batch_mode_view->set_active_cellview_index (0);
+  batch_mode_view->zoom_fit ();
+  std::cout << "zoom fit finish" << std::endl;
+
+  std::cout << "get current layoutview...................." << std::endl;
+  if (lv == nullptr) {
+      std::cerr << "No current layout view available." << std::endl;
+      return -1;
+  }
+  const lay::CellView& cv = lv->cellview(0);
+  db::DBox fullBox = lv->viewport().target_box();
+  int width = imageExportOption->width;
+  int height = imageExportOption->height;
+  if (strcasecmp("bmp", imageExportOption->exportImageType) != 0 && strcasecmp("png", imageExportOption->exportImageType) != 0) {
+    return WRONG_EXPORT_FILE_TYPE; // 暂时只支持导出png和bmp文件
+  }
+  double x1 = imageExportOption->x1;
+  double y1 = imageExportOption->y1;
+  double x2 = imageExportOption->x2;
+  double y2 = imageExportOption->y2;
+
+  std::cout << "x1 = " << x1 << std::endl;
+  std::cout << "y1 = " << y1 << std::endl;
+  std::cout << "x2 = " << x2 << std::endl;
+  std::cout << "y2 = " << y2 << std::endl;
+
+  double layout_size_x = fullBox.width();
+  double layout_size_y = fullBox.height();
+  std::cout << "current view width is " << layout_size_x << std::endl;
+  std::cout << "current view heigh is " << layout_size_y << std::endl;
+
+  if (width <= 0) {
+    return 110;
+    
+  }
+  if (height <= 0) {
+    return 111;
+  }
+ 
+  for (lay::LayerPropertiesConstIterator l = lv->begin_layers(); !l.at_end (); ++l) {
+    std::cout << "set visible = true ################################" << std::endl;
+    lay::LayerProperties p = *l;
+    p.set_visible (true);
+    p.set_fill_color(0xFFFFFF);
+    p.set_dither_pattern(0);
+    p.set_frame_color(0xFFFFFF);
+    lv->set_properties(l, p);
+  }
+
+  lv->transaction (tl::to_string (tr ("Show all cells")));
+  lv->show_all_cells ();
+  lv->commit ();
+  std::cout << "get cell view's layout ..................." << std::endl;
+  std::cout << "EXPORT image path: " << imageExportOption->exportFilePath << std::endl;
+
+
+
+  std::cout << "export range left = " << fullBox.left() << std::endl;
+  std::cout << "export range top = " << fullBox.top() << std::endl;
+  std::cout << "export range right = " << fullBox.right() << std::endl;
+  std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
+
+  std::cout << "###################################################" << std::endl;
+  fullBox.set_left(std::max(x1, fullBox.left()));
+  fullBox.set_top(std::min(y1, fullBox.top()));
+  fullBox.set_right(std::min(x2, fullBox.right()));
+  fullBox.set_bottom(std::max(y2, fullBox.bottom()));
+
+  std::cout << "calculate a new box, full box compared with provided range............" << std::endl;
+
+  std::cout << "export range left = " << fullBox.left() << std::endl;
+  std::cout << "export range top = " << fullBox.top() << std::endl;
+  std::cout << "export range right = " << fullBox.right() << std::endl;
+  std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
+
+  tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(
+    width, 
+    height, 
+    imageExportOption->linewidth <= 0 ? 1 : imageExportOption->linewidth, 
+    imageExportOption->oversampling <= 0 ? 0 : imageExportOption->oversampling,
+    imageExportOption->resolution <= 0 ? 0 : imageExportOption->resolution,
+    tl::Color(), 
+    tl::Color(), 
+    tl::Color(),
+    fullBox);
+  std::cout << "successfully get pixel buffer ......................." << std::endl;                                                            
+  QImage qImage = pixelBuffer.to_image();
+  // QImage 转为 byte[]
+
+  QImage grayImage = qImage.convertToFormat(QImage::Format_Grayscale8);
+  std::cout << "success get gray image.........................." << std::endl;
+
+  *length = grayImage.width() * grayImage.height();
+  unsigned char* output = (unsigned char*)malloc(*length);
+
+  for (int y = 0; y < grayImage.height(); ++y) {
+      memcpy(output + y * grayImage.width(), grayImage.scanLine(y), grayImage.width());
+  }
+  *p = output;
+
+  std::cout << "image convert to 8 gray pixel success .................." << std::endl;
   return 0;
 }
 

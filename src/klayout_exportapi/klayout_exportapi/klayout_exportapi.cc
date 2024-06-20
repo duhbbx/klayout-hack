@@ -90,6 +90,8 @@ FORCE_LINK_GSI_QTUITOOLS
 #include <fstream>
 #include <memory>
 #include <cstdlib>
+#include <cstring>
+#include <cstdlib>
 
 
 #if QT_VERSION >= 0x050000
@@ -284,5 +286,22 @@ int ReleaseHandle(HANDLE handle) {
   delete app;
   tl::StaticObjects::cleanup ();
   return 0;
+}
+
+
+DLL_EXPORT
+int GetByteArray(HANDLE handle, const struct ImageExportOption * option, unsigned char**p, int* length) {
+  if (!handle) {
+    return 1;
+  }
+  lay::NonGuiApplication* app = (lay::NonGuiApplication*) handle;
+  int result = app->apiBuffer(option, p, length);
+  return result;
+}
+
+
+DLL_EXPORT
+void FreeArray(unsigned char* array) {
+    free(array);
 }
 }

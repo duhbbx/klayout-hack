@@ -86,6 +86,10 @@ public:
   int getBoxForApi(ApiBox* apiBox);
   int loadFileForApi(const char* file);
   int exportToImageForApi(const struct ImageExportOption* option);
+
+
+
+  int apiBuffer(const struct ImageExportOption* imageExportOption, unsigned char**p, int* length);
   /**
    *  @brief The application constructor
    *

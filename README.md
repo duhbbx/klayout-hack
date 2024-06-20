@@ -14,7 +14,7 @@
 7. 执行构建
     ```
     # Run in MSYS MinGW 64bit shell. This build uses 4 cores for compilation ("-j4"):
-    build.sh -j4
+    ./build.sh  -noruby -nopython -release -j 16
     ```
 8. 构建后的任务
     ```bash
