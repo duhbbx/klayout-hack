@@ -19,17 +19,6 @@ enum ApiReturnCode {
 };
 
 
-// 声明全局变量 debug
-extern bool debug;
-
-// 定义 DEBUG_PRINTF 宏
-#define DEBUG_PRINTF(fmt, ...) \
-    do { \
-        if (debug) { \
-            printf("[%s:%d] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
-        } \
-    } while (0)
-
 typedef void* HANDLE;
 
 

@@ -21,7 +21,7 @@
 */
 
 
-
+#include <iostream>
 #include <stddef.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -324,9 +324,10 @@ InputStream::InputStream (const std::string &abstract_path)
   bool needs_inflate = false;
 
   tl::Extractor ex (abstract_path.c_str ());
+  // std::cout << "tl::Extractor ex = " << abstract_path.c_str () << std::endl;
 
   if (ex.test (":")) {
-
+//  std::cout << "xxxxxxx1 " << std::endl;
 #if defined(HAVE_QT)
 
     QResource res (tl::to_qstring (abstract_path));
@@ -355,9 +356,11 @@ InputStream::InputStream (const std::string &abstract_path)
     mp_delegate = new RawDataDelegate (abstract_path);
 
 #else
-
+//  std::cout << "xxxxxxx2 " << std::endl;
     std::pair<tl::InputStreamBase *, bool> rr = tl::get_resource_reader (ex.get ());
+    //  std::cout << "xxxxxxx3 " << std::endl;
     if (! rr.first) {
+      //  std::cout << "xxxxxxx4 " << std::endl;
       throw tl::Exception (tl::to_string (tr ("Resource not found: ")) + abstract_path);
     }
 
@@ -367,15 +370,15 @@ InputStream::InputStream (const std::string &abstract_path)
 #endif
 
   } else if (ex.test ("data:")) {
-
+//  std::cout << "xxxxxxx5 " << std::endl;
     std::vector<unsigned char> data = tl::from_base64 (ex.get ());
-
+//  std::cout << "xxxxxxx6 " << std::endl;
     char *data_ptr = new char [data.size ()];
     memcpy (data_ptr, data.begin ().operator-> (), data.size ());
     mp_delegate = new InputMemoryStream (data_ptr, data.size (), true);
 
   } else if (ex.test ("pipe:")) {
-
+//  std::cout << "xxxxxxx7 " << std::endl;
     mp_delegate = new InflatingInputPipe (ex.get ());
 
   } else {
@@ -389,10 +392,12 @@ InputStream::InputStream (const std::string &abstract_path)
       throw tl::Exception (tl::to_string (tr ("HTTP support not enabled - HTTP/HTTPS paths are not available")));
 #endif
     } else if (uri.scheme () == "file") {
+      //  std::cout << "xxxxxxx8 " << std::endl;
       mp_delegate = new InputZLibFile (uri.path ());
     } else if (! uri.scheme ().empty ()) {
       throw tl::Exception (tl::to_string (tr ("URI scheme not supported: ")) + uri.scheme ());
     } else {
+      // std::cout << "xxxxxxx9 " << std::endl;
       mp_delegate = new InputZLibFile (abstract_path);
     }
 
@@ -887,9 +892,12 @@ InputZLibFile::InputZLibFile (const std::string &path)
   : mp_d (new ZLibFilePrivate ())
 {
   m_source = path;
+  // std::cout << "before to abs path "<< path << std::endl;
   std::string source = tl::absolute_file_path (path);
+  // std::cout << "absolute file path is : " << source << std::endl;
 
 #if defined(_WIN32)
+  // std::cout << "win32 open file api ........................" << std::endl;
   int fd = _wopen (tl::to_wstring (source).c_str (), _O_BINARY | _O_RDONLY | _O_SEQUENTIAL);
   if (fd < 0) {
     throw FileOpenErrorException (source, errno);

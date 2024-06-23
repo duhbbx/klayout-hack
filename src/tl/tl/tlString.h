@@ -24,6 +24,7 @@
 #ifndef HDR_tlString
 #define HDR_tlString
 
+#include <iostream>
 #include "tlCommon.h"
 
 #include <string>
@@ -946,9 +947,11 @@ TL_PUBLIC_TEMPLATE std::string join (Iter from, Iter to, const std::string &sep)
       r << sep;
     }
     first = false;
+    // std::cout << "*i = " << *i << ", tl::to_string (*i) = " << tl::to_string (*i) << std::endl;
     r << tl::to_string (*i);
   }
 
+  // std::cout << "std::ostringstream r = " << r.str () << std::endl;
   return r.str ();
 }
 

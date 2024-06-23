@@ -21,6 +21,11 @@
 */
 
 
+// 声明全局变量 debug
+bool api_debug = false;
+int test_me;
+
+
 #include "layApplication.h"
 #include "laySignalHandler.h"
 #include "laybasicConfig.h"
@@ -1046,24 +1051,60 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
   lay::LayoutView *lv = lay::LayoutView::current();
   const lay::CellView& activeCellView = lv->active_cellview();
   lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
-  std::cout << "zoom fit..................................." << std::endl;
+  if (api_debug) {
+    std::cout << "zoom fit..................................." << std::endl;
+  }
+  
   batch_mode_view->set_active_cellview_index (0);
   batch_mode_view->zoom_fit ();
-  std::cout << "zoom fit finish" << std::endl;
+  if (api_debug) {
+    std::cout << "zoom fit finish" << std::endl;
+    std::cout << "get current layoutview...................." << std::endl;
+  }
 
-  std::cout << "get current layoutview...................." << std::endl;
   if (lv == nullptr) {
-      std::cerr << "No current layout view available." << std::endl;
+      if (api_debug) {
+        std::cerr << "No current layout view available." << std::endl;
+      }
+      
       return -1;
   }
-  std::cout << "cell view size is: " << lv->cellviews() << std::endl;
+  if (api_debug) {
+    std::cout << "cell view size is: " << lv->cellviews() << std::endl;
+  }
+  
   const lay::CellView& cv = lv->cellview(0);
-  std::cout << "get first cell view" << std::endl;
+  if (api_debug) {
+    std::cout << "get first cell view" << std::endl;
+  }
+  
   // db::Layout* ly1 = cv.layout();
   db::Layout* ly = cv.cell()->layout();
   const db::Cell &top_cell = ly->cell (*ly->begin_top_down ());
-  // const db::Box bbox = top_cell.bbox();
-  db::DBox fullBox = lv->viewport().target_box();
+  const db::Box bbox = top_cell.bbox();
+
+  if (api_debug) {
+    std::cout << "top_cell.bbox() range left = " << bbox.left() << std::endl;
+    std::cout << "top_cell.bbox() range top = " << bbox.top() << std::endl;
+    std::cout << "top_cell.bbox() range right = " << bbox.right() << std::endl;
+    std::cout << "top_cell.bbox() range bottom = " << bbox.bottom() << std::endl;
+    // db::DBox fullBox = lv->viewport().target_box();
+  }
+
+
+  db::DBox fullBox;
+  fullBox.set_left(1.0 * bbox.left() / 1000);
+  fullBox.set_right(1.0 * bbox.right() / 1000);
+  fullBox.set_top(1.0 * bbox.top() / 1000);
+  fullBox.set_bottom(1.0 * bbox.bottom() / 1000);
+
+  if (api_debug) {
+    double layout_size_x = fullBox.width();
+    double layout_size_y = fullBox.height();
+    std::cout << "current view width is " << layout_size_x << std::endl;
+    std::cout << "current view heigh is " << layout_size_y << std::endl;
+  }
+
 
   int width = imageExportOption->width;
   int height = imageExportOption->height;
@@ -1077,19 +1118,20 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
   double x2 = imageExportOption->x2;
   double y2 = imageExportOption->y2;
 
-  std::cout << "x1 = " << x1 << std::endl;
-  std::cout << "y1 = " << y1 << std::endl;
-  std::cout << "x2 = " << x2 << std::endl;
-  std::cout << "y2 = " << y2 << std::endl;
+  if (api_debug) {
+    std::cout << "Next is user input left-top and right-bottom coordination: " << std::endl;
+    std::cout << "x1 = " << x1 << std::endl;
+    std::cout << "y1 = " << y1 << std::endl;
+    std::cout << "x2 = " << x2 << std::endl;
+    std::cout << "y2 = " << y2 << std::endl;
+  }
+
 
   // if (x1 > x2 || y2 > y1) {
   //   return BOX_PARAMETER_ERROR; // 范围参数不合适
   // }
 
-  double layout_size_x = fullBox.width();
-  double layout_size_y = fullBox.height();
-  std::cout << "current view width is " << layout_size_x << std::endl;
-  std::cout << "current view heigh is " << layout_size_y << std::endl;
+
 
   if (width <= 0) {
     return 110;
@@ -1100,7 +1142,10 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
   }
  
   for (lay::LayerPropertiesConstIterator l = lv->begin_layers(); !l.at_end (); ++l) {
-    std::cout << "set visible = true ################################" << std::endl;
+    if (api_debug) {
+      std::cout << "set visible = true ################################" << std::endl;
+    }
+    
     lay::LayerProperties p = *l;
     p.set_visible (true);
     p.set_fill_color(0xFFFFFF);
@@ -1112,28 +1157,29 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
   lv->transaction (tl::to_string (tr ("Show all cells")));
   lv->show_all_cells ();
   lv->commit ();
-  std::cout << "get cell view's layout ..................." << std::endl;
-  std::cout << "EXPORT image path: " << imageExportOption->exportFilePath << std::endl;
+  if (api_debug) {
+    std::cout << "get cell view's layout ..................." << std::endl;
+    std::cout << "EXPORT image path: " << imageExportOption->exportFilePath << std::endl;
+    std::cout << "export range left = " << fullBox.left() << std::endl;
+    std::cout << "export range top = " << fullBox.top() << std::endl;
+    std::cout << "export range right = " << fullBox.right() << std::endl;
+    std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
+    std::cout << "###################################################" << std::endl;
+  }
 
-
-
-  std::cout << "export range left = " << fullBox.left() << std::endl;
-  std::cout << "export range top = " << fullBox.top() << std::endl;
-  std::cout << "export range right = " << fullBox.right() << std::endl;
-  std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
-
-  std::cout << "###################################################" << std::endl;
   fullBox.set_left(std::max(x1, fullBox.left()));
   fullBox.set_top(std::min(y1, fullBox.top()));
   fullBox.set_right(std::min(x2, fullBox.right()));
   fullBox.set_bottom(std::max(y2, fullBox.bottom()));
 
-  std::cout << "calculate a new box, full box compared with provided range............" << std::endl;
+  if (api_debug) {
+    std::cout << "calculate a new box, full box compared with provided range............" << std::endl;
+    std::cout << "export range left = " << fullBox.left() << std::endl;
+    std::cout << "export range top = " << fullBox.top() << std::endl;
+    std::cout << "export range right = " << fullBox.right() << std::endl;
+    std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
+  }
 
-  std::cout << "export range left = " << fullBox.left() << std::endl;
-  std::cout << "export range top = " << fullBox.top() << std::endl;
-  std::cout << "export range right = " << fullBox.right() << std::endl;
-  std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
 
   tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(
     width, 
@@ -1145,18 +1191,31 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
     tl::Color(), 
     tl::Color(),
     fullBox);
-  std::cout << "successfully get pixel buffer ......................." << std::endl;                                                            
+  if (api_debug) {
+    std::cout << "successfully get pixel buffer ......................." << std::endl;  
+  }
+                                                            
   QImage qImage = pixelBuffer.to_image();
-  std::cout << "convert to QT image ................." << std::endl;
+  if (api_debug) {
+    std::cout << "convert to QT image ................." << std::endl;
+  }
+  
   // 保存 QImage 为 BMP 文件
   if (qImage.save(QString::fromStdString(imageExportOption->exportFilePath), imageExportOption->exportImageType)) {
+    if (api_debug) {
       std::cout << "Image saved successfully." << std::endl;
+    }
   } else {
-      std::cout << "Failed to save image." << std::endl;
+      if (api_debug) {
+        std::cout << "Failed to save image." << std::endl;
+      }
       return 5;       // 图片导出失败了
   }
 
-  std::cout << "image saved success .................." << std::endl;
+  if (api_debug) {
+    std::cout << "image saved success .................." << std::endl;
+  }
+  
   return 0;
 }
 
@@ -1165,37 +1224,87 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
   lay::LayoutView *lv = lay::LayoutView::current();
   const lay::CellView& activeCellView = lv->active_cellview();
   lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
-  std::cout << "zoom fit..................................." << std::endl;
+  if (api_debug) {
+    std::cout << "zoom fit..................................." << std::endl;
+  }
+  
   batch_mode_view->set_active_cellview_index (0);
   batch_mode_view->zoom_fit ();
-  std::cout << "zoom fit finish" << std::endl;
+  if (api_debug) {
+    std::cout << "zoom fit finish" << std::endl;
+    std::cout << "get current layoutview...................." << std::endl;
+  }
 
-  std::cout << "get current layoutview...................." << std::endl;
   if (lv == nullptr) {
-      std::cerr << "No current layout view available." << std::endl;
+      if (api_debug) {
+        std::cerr << "No current layout view available." << std::endl;
+      }
+      
       return -1;
   }
+  if (api_debug) {
+    std::cout << "cell view size is: " << lv->cellviews() << std::endl;
+  }
+  
   const lay::CellView& cv = lv->cellview(0);
-  db::DBox fullBox = lv->viewport().target_box();
+  if (api_debug) {
+    std::cout << "get first cell view" << std::endl;
+  }
+  
+  // db::Layout* ly1 = cv.layout();
+  db::Layout* ly = cv.cell()->layout();
+  const db::Cell &top_cell = ly->cell (*ly->begin_top_down ());
+  const db::Box bbox = top_cell.bbox();
+
+  if (api_debug) {
+    std::cout << "top_cell.bbox() range left = " << bbox.left() << std::endl;
+    std::cout << "top_cell.bbox() range top = " << bbox.top() << std::endl;
+    std::cout << "top_cell.bbox() range right = " << bbox.right() << std::endl;
+    std::cout << "top_cell.bbox() range bottom = " << bbox.bottom() << std::endl;
+    // db::DBox fullBox = lv->viewport().target_box();
+  }
+
+
+  db::DBox fullBox;
+  fullBox.set_left(1.0 * bbox.left() / 1000);
+  fullBox.set_right(1.0 * bbox.right() / 1000);
+  fullBox.set_top(1.0 * bbox.top() / 1000);
+  fullBox.set_bottom(1.0 * bbox.bottom() / 1000);
+
+  if (api_debug) {
+    double layout_size_x = fullBox.width();
+    double layout_size_y = fullBox.height();
+    std::cout << "current view width is " << layout_size_x << std::endl;
+    std::cout << "current view heigh is " << layout_size_y << std::endl;
+  }
+
+
   int width = imageExportOption->width;
   int height = imageExportOption->height;
+
   if (strcasecmp("bmp", imageExportOption->exportImageType) != 0 && strcasecmp("png", imageExportOption->exportImageType) != 0) {
     return WRONG_EXPORT_FILE_TYPE; // 暂时只支持导出png和bmp文件
   }
+
   double x1 = imageExportOption->x1;
   double y1 = imageExportOption->y1;
   double x2 = imageExportOption->x2;
   double y2 = imageExportOption->y2;
 
-  std::cout << "x1 = " << x1 << std::endl;
-  std::cout << "y1 = " << y1 << std::endl;
-  std::cout << "x2 = " << x2 << std::endl;
-  std::cout << "y2 = " << y2 << std::endl;
+  if (api_debug) {
+    std::cout << "Next is user input left-top and right-bottom coordination: " << std::endl;
+    std::cout << "x1 = " << x1 << std::endl;
+    std::cout << "y1 = " << y1 << std::endl;
+    std::cout << "x2 = " << x2 << std::endl;
+    std::cout << "y2 = " << y2 << std::endl;
+  }
 
-  double layout_size_x = fullBox.width();
-  double layout_size_y = fullBox.height();
-  std::cout << "current view width is " << layout_size_x << std::endl;
-  std::cout << "current view heigh is " << layout_size_y << std::endl;
+
+  // if (x1 > x2 || y2 > y1) {
+  //   return BOX_PARAMETER_ERROR; // 范围参数不合适
+  // }
+
+
 
   if (width <= 0) {
     return 110;
@@ -1206,7 +1315,10 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
   }
  
   for (lay::LayerPropertiesConstIterator l = lv->begin_layers(); !l.at_end (); ++l) {
-    std::cout << "set visible = true ################################" << std::endl;
+    if (api_debug) {
+      std::cout << "set visible = true ################################" << std::endl;
+    }
+    
     lay::LayerProperties p = *l;
     p.set_visible (true);
     p.set_fill_color(0xFFFFFF);
@@ -1218,28 +1330,29 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
   lv->transaction (tl::to_string (tr ("Show all cells")));
   lv->show_all_cells ();
   lv->commit ();
-  std::cout << "get cell view's layout ..................." << std::endl;
-  std::cout << "EXPORT image path: " << imageExportOption->exportFilePath << std::endl;
+  if (api_debug) {
+    std::cout << "get cell view's layout ..................." << std::endl;
+    std::cout << "EXPORT image path: " << imageExportOption->exportFilePath << std::endl;
+    std::cout << "export range left = " << fullBox.left() << std::endl;
+    std::cout << "export range top = " << fullBox.top() << std::endl;
+    std::cout << "export range right = " << fullBox.right() << std::endl;
+    std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
+    std::cout << "###################################################" << std::endl;
+  }
 
-
-
-  std::cout << "export range left = " << fullBox.left() << std::endl;
-  std::cout << "export range top = " << fullBox.top() << std::endl;
-  std::cout << "export range right = " << fullBox.right() << std::endl;
-  std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
-
-  std::cout << "###################################################" << std::endl;
   fullBox.set_left(std::max(x1, fullBox.left()));
   fullBox.set_top(std::min(y1, fullBox.top()));
   fullBox.set_right(std::min(x2, fullBox.right()));
   fullBox.set_bottom(std::max(y2, fullBox.bottom()));
 
-  std::cout << "calculate a new box, full box compared with provided range............" << std::endl;
+  if (api_debug) {
+    std::cout << "calculate a new box, full box compared with provided range............" << std::endl;
+    std::cout << "export range left = " << fullBox.left() << std::endl;
+    std::cout << "export range top = " << fullBox.top() << std::endl;
+    std::cout << "export range right = " << fullBox.right() << std::endl;
+    std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
+  }
 
-  std::cout << "export range left = " << fullBox.left() << std::endl;
-  std::cout << "export range top = " << fullBox.top() << std::endl;
-  std::cout << "export range right = " << fullBox.right() << std::endl;
-  std::cout << "export range bottom = " << fullBox.bottom() << std::endl;
 
   tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(
     width, 
@@ -1251,13 +1364,17 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
     tl::Color(), 
     tl::Color(),
     fullBox);
-  std::cout << "successfully get pixel buffer ......................." << std::endl;                                                            
+  if (api_debug) {
+    std::cout << "successfully get pixel buffer ......................." << std::endl;  
+  }                                                        
   QImage qImage = pixelBuffer.to_image();
   // QImage 转为 byte[]
 
   QImage grayImage = qImage.convertToFormat(QImage::Format_Grayscale8);
-  std::cout << "success get gray image.........................." << std::endl;
-
+  if (api_debug) {
+    std::cout << "success get gray image.........................." << std::endl;
+  }
+  
   *length = grayImage.width() * grayImage.height();
   unsigned char* output = (unsigned char*)malloc(*length);
 
@@ -1265,40 +1382,66 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
       memcpy(output + y * grayImage.width(), grayImage.scanLine(y), grayImage.width());
   }
   *p = output;
-
-  std::cout << "image convert to 8 gray pixel success .................." << std::endl;
+  if (api_debug) {
+    std::cout << "image convert to 8 gray pixel success .................." << std::endl;
+  }
+  
   return 0;
 }
 
 int ApplicationBase::loadFileForApi(const char* file) {
   batch_mode_view.reset (create_view ());
   boolean add_cellview;
-  std::cout << "ready to load layout.............................." << std::endl;
+  if (api_debug) {
+    std::cout << "ready to load layout.............................." << std::endl;
+  }
+  
   const std::string temp = file;
-  std::cout << "File to load is: " << temp;
+  if (api_debug) {
+    std::cout << "File to load is: " << temp;
+  }
+  
   batch_mode_view.get()->load_layout(temp, false);
   // 获取当前的 LayoutView
   lay::LayoutView *lv = lay::LayoutView::current();
   const lay::CellView& activeCellView = lv->active_cellview();
   
   lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
-  std::cout << "zoom fit..................................." << std::endl;
+  if (api_debug) {
+    std::cout << "zoom fit..................................." << std::endl;
+  }
   batch_mode_view->set_active_cellview_index (0);
   batch_mode_view->zoom_fit ();
-  std::cout << "zoom fit finish" << std::endl;
+  if (api_debug) {
+    std::cout << "zoom fit finish" << std::endl;
+  }
+  
   return 0;
 }
 
 int ApplicationBase::getBoxForApi(ApiBox* apiBox) {
+  // 获取当前的 LayoutView
   lay::LayoutView *lv = lay::LayoutView::current();
-  if (!lv) {
-    return 1;
+  const lay::CellView& cv = lv->cellview(0);
+  if (api_debug) {
+    std::cout << "ready to get api box..........." << std::endl;
+    std::cout << "get first cell view" << std::endl;
   }
-  db::DBox fullBox = lv->viewport().target_box();
-  apiBox->x1 = fullBox.left();
-  apiBox->y1= fullBox.top();
-  apiBox->x2 = fullBox.right();
-  apiBox->y2 = fullBox.bottom();
+  db::Layout* ly = cv.cell()->layout();
+  const db::Cell &top_cell = ly->cell (*ly->begin_top_down ());
+  const db::Box bbox = top_cell.bbox();
+
+  if (api_debug) {
+    std::cout << "top_cell.bbox() range left = " << bbox.left() << std::endl;
+    std::cout << "top_cell.bbox() range top = " << bbox.top() << std::endl;
+    std::cout << "top_cell.bbox() range right = " << bbox.right() << std::endl;
+    std::cout << "top_cell.bbox() range bottom = " << bbox.bottom() << std::endl;
+  }
+
+  apiBox->x1 = 1.0 * bbox.left() / 1000;
+  apiBox->x2 = 1.0 * bbox.right() / 1000;
+  apiBox->y1 = 1.0 * bbox.top() / 1000;
+  apiBox->y2 = 1.0 * bbox.bottom() / 1000;
   return 0;
 }
 
@@ -1326,11 +1469,17 @@ ApplicationBase::create_view ()
   //  create a new view
   lay::LayoutView *view = new lay::LayoutView (&batch_mode_manager, lay::ApplicationBase::instance ()->is_editable (), dispatcher ());
 
-  std::cout << "after new a view in create_view......................" << std::endl;
+  if (api_debug) {
+    std::cout << "after new a view in create_view......................" << std::endl;
+  }
+  
   //  set initial attributes
   view->set_synchronous (m_sync_mode);
 
-  std::cout << "after set synchronous............................" << std::endl;
+  if (api_debug) {
+    std::cout << "after set synchronous............................" << std::endl;
+  }
+  
 
   int tl = 0;
   // dispatcher ()->config_get (cfg_initial_hier_depth, tl);

@@ -3359,7 +3359,7 @@ LayoutViewBase::load_layout (const std::string &filename, const db::LoadLayoutOp
                              bool add_cellview)
 {
 
-  std::cout << "load layout deep style..............................." << std::endl;
+  // std::cout << "load layout deep style..............................." << std::endl;
   stop ();
   
   bool set_max_hier = (m_full_hier_new_cell || has_max_hier ());
@@ -3369,7 +3369,7 @@ LayoutViewBase::load_layout (const std::string &filename, const db::LoadLayoutOp
   //  create a new layout handle 
   lay::CellView cv;
 
-  std::cout << "create layout handle and layout................................." << std::endl;
+  // std::cout << "create layout handle and layout................................." << std::endl;
   lay::LayoutHandle *handle = new lay::LayoutHandle (new db::Layout (is_editable (), manager ()), filename);
   cv.set (handle);
 
@@ -3384,11 +3384,11 @@ LayoutViewBase::load_layout (const std::string &filename, const db::LoadLayoutOp
     {
       tl::log << tl::to_string (tr ("Loading file: ")) << filename << tl::to_string (tr (" with technology: ")) << technology;
 
-      std::cout << tl::to_string (tr ("Loading file: ")) 
-                << filename 
-                << tl::to_string (tr (" with technology: ")) 
-                << technology
-                << std::endl;
+      // std::cout << tl::to_string (tr ("Loading file: ")) 
+      //           << filename 
+      //           << tl::to_string (tr (" with technology: ")) 
+      //           << technology
+      //           << std::endl;
       lmap = cv->load (options, technology);
     }
 

@@ -380,17 +380,21 @@ LayoutHandle::save_as (const std::string &fn, tl::OutputStream::OutputStreamMode
 db::LayerMap 
 LayoutHandle::load (const db::LoadLayoutOptions &options, const std::string &technology)
 {
-  std::cout << "[LayoutHandle::load (const] ready load ........................... " << std::endl;
+  // std::cout << "[LayoutHandle::load (const] ready load ........................... "  << m_filename << std::endl;
+  // std::cout << "[LayoutHandle::load (const] ready load ........................... "  << m_filename.c_str() << std::endl;
   m_load_options = options;
   m_save_options = db::SaveLayoutOptions ();
+    // std::cout << "bbbbbbbbbbbbbbbbbbbb" << std::endl;
   m_save_options_valid = false;
 
   set_tech_name (technology);
-
+  // std::cout << "aaaaaaaaaa" << std::endl;
   tl::InputStream stream (m_filename);
+  // std::cout << "get input stream........................." << std::endl;
   db::Reader reader (stream);
+  // std::cout << "11111" << std::endl;
   db::LayerMap new_lmap = reader.read (layout (), m_load_options);
-
+  // std::cout << "22222" << std::endl;
   //  If there is no technology given and the reader reports one, use this one
   if (technology.empty ()) {
     std::string tech_from_reader = layout ().technology_name ();
@@ -398,10 +402,13 @@ LayoutHandle::load (const db::LoadLayoutOptions &options, const std::string &tec
       set_tech_name (tech_from_reader);
     }
   }
+  // std::cout << "333333" << std::endl;
 
   //  Update the file's data:
   remove_file_from_watcher (filename ());
+  // std::cout << "444444" << std::endl;
   add_file_to_watcher (filename ());
+  // std::cout << "55555" << std::endl;
 
   m_save_options.set_format (reader.format ());
   m_dirty = false;

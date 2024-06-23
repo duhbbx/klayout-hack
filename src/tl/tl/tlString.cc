@@ -21,6 +21,11 @@
 */
 
 
+#include <iostream>
+#include <iostream>
+#include <string>
+#include <locale>
+#include <codecvt>
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
@@ -120,65 +125,43 @@ uint32_t utf32_from_utf8 (const char *&cp, const char *cpe)
 
 std::wstring to_wstring (const std::string &s)
 {
-  std::wstring ws;
 
-  const char *cpe = s.c_str () + s.size ();
-  for (const char *cp = s.c_str (); cp < cpe; ) {
-
-    uint32_t c32 = utf32_from_utf8 (cp, cpe);
-
-    if (sizeof (wchar_t) == 2 && c32 >= 0x10000) {
-      c32 -= 0x10000;
-      ws += wchar_t (0xd800 + (c32 >> 10));
-      ws += wchar_t (0xdc00 + (c32 & 0x3ff));
-    } else {
-      ws += wchar_t (c32);
-    }
-
-  }
-
-  return ws;
+    // std::cout << "string 2 wstring, s = " << s << std::endl;
+    std::string strLocale = setlocale(LC_ALL, ""); 
+    const char* chSrc = s.c_str();
+    size_t nDestSize = mbstowcs(NULL, chSrc, 0) + 1;
+    wchar_t* wchDest = new wchar_t[nDestSize];
+    wmemset(wchDest, 0, nDestSize);
+    mbstowcs(wchDest,chSrc,nDestSize);
+    std::wstring wstrResult = wchDest;
+    delete []wchDest;
+    setlocale(LC_ALL, strLocale.c_str());
+    // std::wcout << "to wstring result is: " << wstrResult << std::endl;
+    return wstrResult;
 }
 
 std::string to_string (const std::wstring &ws)
 {
-  std::string s;
+  // 输出原始宽字符字符串
 
-  for (std::wstring::const_iterator c = ws.begin (); c != ws.end (); ++c) {
-
-    uint32_t c32 = *c;
-    if (sizeof (wchar_t) == 2 && c32 >= 0xd800 && c + 1 < ws.end ()) {
-      ++c;
-      c32 = (c32 & 0x3ff) << 10;
-      c32 |= uint32_t (*c) & 0x3ff;
-      c32 += 0x10000;
-    }
-
-    if (c32 >= 0x10000) {
-
-      s.push_back (0xf0 | ((c32 >> 18) & 0x7));
-      s.push_back (0x80 | ((c32 >> 12) & 0x3f));
-      s.push_back (0x80 | ((c32 >> 6) & 0x3f));
-      s.push_back (0x80 | (c32 & 0x3f));
-
-    } else if (c32 >= 0x800) {
-
-      s.push_back (0xe0 | ((c32 >> 12) & 0xf));
-      s.push_back (0x80 | ((c32 >> 6) & 0x3f));
-      s.push_back (0x80 | (c32 & 0x3f));
-
-    } else if (c32 >= 0x80) {
-
-      s.push_back (0xc0 | ((c32 >> 6) & 0x1f));
-      s.push_back (0x80 | (c32 & 0x3f));
-
-    } else {
-      s.push_back (char (c32));
-    }
-
-  }
-
-  return s;
+  // std::wcout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+  // std::wcout << L"ws is: " << ws << std::endl;
+  
+    std::string strLocale = setlocale(LC_ALL, "");
+    const wchar_t* wchSrc = ws.c_str();
+    size_t nDestSize = wcstombs(NULL, wchSrc, 0) + 1;
+    char *chDest = new char[nDestSize];
+    memset(chDest,0,nDestSize);
+    wcstombs(chDest,wchSrc,nDestSize);
+    std::string strResult = chDest;
+    delete []chDest;
+    setlocale(LC_ALL, strLocale.c_str());
+    // return strResult;
+  
+  // 输出转换后的字符串
+  // std::cout << "S IS: " << strResult << std::endl;
+  
+  return strResult;
 }
 
 // -------------------------------------------------------------------------

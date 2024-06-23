@@ -20,6 +20,7 @@
 
 */
 
+#include <iostream>
 #include "tlFileUtils.h"
 #include "tlStream.h"
 #include "tlLog.h"
@@ -678,12 +679,17 @@ bool chdir (const std::string &path)
 static std::pair<std::string, bool> absolute_path_of_existing (const std::string &s)
 {
 #if defined(_WIN32)
-
+  // std::cout << "absolute_path_of_existing: s = " << s << std::endl;
   wchar_t *fp = _wfullpath (NULL, tl::to_wstring (s).c_str (), 0);
   if (fp == NULL) {
     return std::make_pair (std::string (), false);
   } else {
+    // std::wcout << L"fp = " << fp << std::endl;
+    // std::wcout << L"std::wstring (fp) = " << std::wstring (fp) << std::endl;
+    // std::cout << "tl::to_string (std::wstring (fp)) = " << tl::to_string (std::wstring (fp)) << std::endl;
     std::string fps (tl::to_string (std::wstring (fp)));
+
+    // std::cout << "fps = " << fps << std::endl;
     free (fp);
     return std::make_pair (fps, true);
   }
@@ -722,6 +728,7 @@ bool is_absolute (const std::string &s)
 
 std::string absolute_file_path (const std::string &s)
 {
+  // std::cout << "TO ABS PATH, param is: " << s << std::endl;
   //  ~ paths are always absolute, because the home directory is
   if (s.size () > 0 && s[0] == '~') {
     return get_home_path () + std::string (s, 1);
@@ -731,11 +738,18 @@ std::string absolute_file_path (const std::string &s)
   if (parts.empty ()) {
     return current_dir ();
   }
+  // 打印 std::vector<std::string>
+  // std::cout << "split array elements: ";
+  // for (const auto& s1 : parts) {
+      // std::cout << s1 << " ";
+  // }
+  // std::cout << std::endl;
 
   std::pair<std::string, bool> known_part;
   std::vector<std::string> unknown_parts;
 
   while (! parts.empty () && ! (parts.size () == 1 && is_drive (parts[0]))) {
+    // std::cout << "TL JOIN result is " << tl::join (parts, "") << std::endl;
     known_part = absolute_path_of_existing (tl::join (parts, ""));
     if (! known_part.second) {
       unknown_parts.push_back (parts.back ());
@@ -746,6 +760,16 @@ std::string absolute_file_path (const std::string &s)
   }
 
   std::reverse (unknown_parts.begin (), unknown_parts.end ());
+
+  // 打印 std::pair<std::string, bool>
+  // std::cout << "Pair: (" << known_part.first << ", " << (known_part.second ? "true" : "false") << ")" << std::endl;
+
+  // 打印 std::vector<std::string>
+  // std::cout << "Vector elements: ";
+  // for (const auto& s1 : unknown_parts) {
+      // std::cout << s1 << " ";
+  // }
+  // std::cout << std::endl;
 
   if (! known_part.second) {
 

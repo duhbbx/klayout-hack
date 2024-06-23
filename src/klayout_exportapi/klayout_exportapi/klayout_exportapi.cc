@@ -214,13 +214,26 @@ static void api_set_log_file (const std::string &log_file)
     #define DLL_EXPORT
 #endif
 
-bool api_debug = false;
+
+
+// 声明全局变量 debug
+int local_api_debug;
+
+// 定义 DEBUG_PRINTF 宏
+#define DEBUG_PRINTF(fmt, ...) \
+    do { \
+        if (local_api_debug) { \
+            printf("[%s:%d] " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
+        } \
+    } while (0)
+
 
 extern "C" {
 
 DLL_EXPORT
 int CreateHandle(HANDLE* handle, bool debug) {
-  api_debug = true;
+  // std::cout << "xxx test_me " << test_me << std::endl;
+  local_api_debug = 0;
   int result = 0;
   try {
     if (!handle) {
