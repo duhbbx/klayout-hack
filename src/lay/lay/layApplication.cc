@@ -1367,27 +1367,29 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
   if (api_debug) {
     std::cout << "successfully get pixel buffer ......................." << std::endl;  
   }                                                        
-  QImage qImage = pixelBuffer.to_image();
-  // QImage 转为 byte[]
-
-  QImage grayImage = qImage.convertToFormat(QImage::Format_Grayscale8);
-  if (api_debug) {
-    std::cout << "success get gray image.........................." << std::endl;
-  }
   
-  *length = grayImage.width() * grayImage.height();
+  
+  
+  *length = width * height;
 
   if (*length > this->bufferLength) {
-    this->bufferLength = *length;
+    this->bufferLength = (int) (width * height * 1.1);
     if (this->exportBuffer) {
       free(this->exportBuffer);
     }
-    this->exportBuffer = (unsigned char*)malloc(*length);
+    this->exportBuffer = (unsigned char*)malloc(this->bufferLength);
   }
 
-  for (int y = 0; y < grayImage.height(); ++y) {
-    memcpy(this->exportBuffer + y * grayImage.width(), grayImage.scanLine(y), grayImage.width());
+  for (size_t i = 0; i < *length; ++i) {
+    tl::color_t c = pixelBuffer.data()[i];
+    unsigned int r = c >> 16 & 0xff;
+    unsigned int g = c >> 8 & 0xff;
+    unsigned int b = c >> 0 & 0xff;
+    // 使用加权公式计算灰度值，并使用整数运算
+    this->exportBuffer[i] = static_cast<unsigned char>((r * 77 + g * 150 + b * 29) >> 8);
   }
+
+
   *p = this->exportBuffer;
   if (api_debug) {
     std::cout << "image convert to 8 gray pixel success .................." << std::endl;
