@@ -86,6 +86,8 @@ public:
   int getBoxForApi(ApiBox* apiBox);
   int loadFileForApi(const char* file);
   int exportToImageForApi(const struct ImageExportOption* option);
+  int bufferLength = 0;
+  unsigned char* exportBuffer = nullptr;
 
 
 

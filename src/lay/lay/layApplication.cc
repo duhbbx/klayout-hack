@@ -1376,12 +1376,19 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
   }
   
   *length = grayImage.width() * grayImage.height();
-  unsigned char* output = (unsigned char*)malloc(*length);
+
+  if (*length > this->bufferLength) {
+    this->bufferLength = *length;
+    if (this->exportBuffer) {
+      free(this->exportBuffer);
+    }
+    this->exportBuffer = (unsigned char*)malloc(*length);
+  }
 
   for (int y = 0; y < grayImage.height(); ++y) {
-      memcpy(output + y * grayImage.width(), grayImage.scanLine(y), grayImage.width());
+    memcpy(this->exportBuffer + y * grayImage.width(), grayImage.scanLine(y), grayImage.width());
   }
-  *p = output;
+  *p = this->exportBuffer;
   if (api_debug) {
     std::cout << "image convert to 8 gray pixel success .................." << std::endl;
   }
