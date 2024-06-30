@@ -88,6 +88,8 @@ int test_me;
 #else
 #  include <dlfcn.h>
 #endif
+#include <immintrin.h>  // 包含 AVX 指令集
+#include <chrono>
 
 namespace gsi
 {
@@ -1148,9 +1150,9 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
     
     lay::LayerProperties p = *l;
     p.set_visible (true);
-    p.set_fill_color(0xFFFFFF);
+    p.set_fill_color(0x00000000);
     p.set_dither_pattern(0);
-    p.set_frame_color(0xFFFFFF);
+    p.set_frame_color(0x00FFFFFF);
     lv->set_properties(l, p);
   }
 
@@ -1187,9 +1189,9 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
     imageExportOption->linewidth <= 0 ? 1 : imageExportOption->linewidth, 
     imageExportOption->oversampling <= 0 ? 0 : imageExportOption->oversampling,
     imageExportOption->resolution <= 0 ? 0 : imageExportOption->resolution,
-    tl::Color(), 
-    tl::Color(), 
-    tl::Color(),
+    tl::Color(0xFF, 0xFF, 0xFF), 
+    tl::Color(0x00, 0x00, 0x00), 
+    tl::Color(0x00, 0x00, 0x00),
     fullBox);
   if (api_debug) {
     std::cout << "successfully get pixel buffer ......................." << std::endl;  
@@ -1220,6 +1222,10 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
 }
 
 int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption, unsigned char ** p, int * length) {
+
+  // // 获取开始时间点
+  // auto start = std::chrono::high_resolution_clock::now();
+
   // 获取当前的 LayoutView
   lay::LayoutView *lv = lay::LayoutView::current();
   const lay::CellView& activeCellView = lv->active_cellview();
@@ -1279,6 +1285,20 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
   }
 
 
+  // {
+
+  //       // 获取结束时间点
+  //   auto end = std::chrono::high_resolution_clock::now();
+  //   // 计算持续时间
+  //   std::chrono::duration<double> duration = end - start;
+  //   // 以毫秒为单位输出
+  //   auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+  //   std::cout << "1运行时间: " << duration_ms.count() << " 毫秒" << std::endl;
+
+  //   start = std::chrono::high_resolution_clock::now();
+  // }
+
+
   int width = imageExportOption->width;
   int height = imageExportOption->height;
 
@@ -1321,9 +1341,9 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
     
     lay::LayerProperties p = *l;
     p.set_visible (true);
-    p.set_fill_color(0xFFFFFF);
+    p.set_fill_color(0x00000000);
     p.set_dither_pattern(0);
-    p.set_frame_color(0xFFFFFF);
+    p.set_frame_color(0x00FFFFFF);
     lv->set_properties(l, p);
   }
 
@@ -1354,21 +1374,51 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
   }
 
 
+  // {
+
+  //       // 获取结束时间点
+  //   auto end = std::chrono::high_resolution_clock::now();
+  //   // 计算持续时间
+  //   std::chrono::duration<double> duration = end - start;
+  //   // 以毫秒为单位输出
+  //   auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+  //   std::cout << "2运行时间: " << duration_ms.count() << " 毫秒" << std::endl;
+
+  //   start = std::chrono::high_resolution_clock::now();
+  // }
+
   tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(
     width, 
     height, 
     imageExportOption->linewidth <= 0 ? 1 : imageExportOption->linewidth, 
     imageExportOption->oversampling <= 0 ? 0 : imageExportOption->oversampling,
     imageExportOption->resolution <= 0 ? 0 : imageExportOption->resolution,
-    tl::Color(), 
-    tl::Color(), 
-    tl::Color(),
+    tl::Color(0xFF, 0xFF, 0xFF), 
+    tl::Color(0x00, 0x00, 0x00), 
+    tl::Color(0x00, 0x00, 0x00),
     fullBox);
   if (api_debug) {
     std::cout << "successfully get pixel buffer ......................." << std::endl;  
   }                                                        
   
+
+  //   {
+
+  //       // 获取结束时间点
+  //   auto end = std::chrono::high_resolution_clock::now();
+  //   // 计算持续时间
+  //   std::chrono::duration<double> duration = end - start;
+  //   // 以毫秒为单位输出
+  //   auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+  //   std::cout << "3运行时间: " << duration_ms.count() << " 毫秒" << std::endl;
+
+  //   start = std::chrono::high_resolution_clock::now();
+  // }
   
+
+  if (1 == 2) {
+
+    // std::cout << "use customized algo ................"  << "..................." << std::endl;
   
   *length = width * height;
 
@@ -1378,17 +1428,105 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
       free(this->exportBuffer);
     }
     this->exportBuffer = (unsigned char*)malloc(this->bufferLength);
+    std::cout << "need allocate memory" << std::endl;
+  } else {
+    std::cout << "memory enough ............" << std::endl;
   }
 
-  for (size_t i = 0; i < *length; ++i) {
-    tl::color_t c = pixelBuffer.data()[i];
-    unsigned int r = c >> 16 & 0xff;
-    unsigned int g = c >> 8 & 0xff;
-    unsigned int b = c >> 0 & 0xff;
-    // 使用加权公式计算灰度值，并使用整数运算
-    this->exportBuffer[i] = static_cast<unsigned char>((r * 77 + g * 150 + b * 29) >> 8);
+  // for (size_t i = 0; i < *length; ++i) {
+  //   tl::color_t c = pixelBuffer.data()[i];
+  //   unsigned int r = c >> 16 & 0xff;
+  //   unsigned int g = c >> 8 & 0xff;
+  //   unsigned int b = c >> 0 & 0xff;
+  //   // 使用加权公式计算灰度值，并使用整数运算
+  //   this->exportBuffer[i] = static_cast<unsigned char>((r * 77 + g * 150 + b * 29) >> 8);
+  // }
+
+
+// 假设 length 是指向 size_t 类型的指针
+size_t len = *length;
+const tl::color_t* pixelPtr = pixelBuffer.data();
+unsigned char* exportPtr = this->exportBuffer;
+
+const unsigned int redWeight = 77;
+const unsigned int greenWeight = 150;
+const unsigned int blueWeight = 29;
+
+// 使用 SIMD 优化处理
+const size_t simdWidth = 8;
+size_t i = 0;
+
+for (; i + simdWidth <= len; i += simdWidth) {
+    __m256i pixels = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(pixelPtr + i));
+    __m256i red = _mm256_and_si256(_mm256_srli_epi32(pixels, 16), _mm256_set1_epi32(0xFF));
+    __m256i green = _mm256_and_si256(_mm256_srli_epi32(pixels, 8), _mm256_set1_epi32(0xFF));
+    __m256i blue = _mm256_and_si256(pixels, _mm256_set1_epi32(0xFF));
+
+    __m256i gray = _mm256_srli_epi32(
+        _mm256_add_epi32(
+            _mm256_add_epi32(_mm256_mullo_epi32(red, _mm256_set1_epi32(redWeight)), _mm256_mullo_epi32(green, _mm256_set1_epi32(greenWeight))),
+            _mm256_mullo_epi32(blue, _mm256_set1_epi32(blueWeight))),
+        8);
+
+    __m256i packedGray = _mm256_packus_epi32(gray, gray);
+    packedGray = _mm256_packus_epi16(packedGray, packedGray);
+
+    _mm_storel_epi64(reinterpret_cast<__m128i*>(exportPtr + i), _mm256_extracti128_si256(packedGray, 0));
+}
+
+// 处理剩余的像素
+for (; i < len; ++i) {
+    tl::color_t c = pixelPtr[i];
+    unsigned int r = (c >> 16) & 0xff;
+    unsigned int g = (c >> 8) & 0xff;
+    unsigned int b = c & 0xff;
+    exportPtr[i] = static_cast<unsigned char>((r * redWeight + g * greenWeight + b * blueWeight) >> 8);
+}
+
+
   }
 
+  if (1 == 1) {
+
+    // std::cout << "use qt to gray ................"  << "..................." << std::endl;
+    QImage qImage = pixelBuffer.to_image();
+    // QImage 转为 byte[]
+
+    QImage grayImage = qImage.convertToFormat(QImage::Format_Grayscale8);
+    if (api_debug) {
+      std::cout << "success get gray image.........................." << std::endl;
+    }
+
+    *length = grayImage.width() * grayImage.height();
+
+    if (*length > this->bufferLength) {
+      this->bufferLength = *length;
+      if (this->exportBuffer) {
+        free(this->exportBuffer);
+      }
+      this->exportBuffer = (unsigned char*)malloc(*length);
+    }
+
+    for (int y = 0; y < grayImage.height(); ++y) {
+      memcpy(this->exportBuffer + y * grayImage.width(), grayImage.scanLine(y), grayImage.width());
+    }
+
+
+  }
+
+
+  //   {
+
+  //       // 获取结束时间点
+  //   auto end = std::chrono::high_resolution_clock::now();
+  //   // 计算持续时间
+  //   std::chrono::duration<double> duration = end - start;
+  //   // 以毫秒为单位输出
+  //   auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+  //   std::cout << "4运行时间: " << duration_ms.count() << " 毫秒" << std::endl;
+
+  //   start = std::chrono::high_resolution_clock::now();
+  // }
 
   *p = this->exportBuffer;
   if (api_debug) {

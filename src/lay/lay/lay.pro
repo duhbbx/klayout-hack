@@ -203,6 +203,9 @@ equals(HAVE_QTBINDINGS, "1") {
 INCLUDEPATH += $$RBA_INC
 DEPENDPATH += $$RBA_INC
 
+# 启用 AVX2 支持
+QMAKE_CXXFLAGS += -mavx2
+
 equals(HAVE_RUBY, "1") {
   LIBS += -lklayout_rba
 } else {
