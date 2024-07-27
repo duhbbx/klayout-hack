@@ -1052,7 +1052,7 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
   // 获取当前的 LayoutView
   lay::LayoutView *lv = lay::LayoutView::current();
   const lay::CellView& activeCellView = lv->active_cellview();
-  lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
+  lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 2));
   if (api_debug) {
     std::cout << "zoom fit..................................." << std::endl;
   }
@@ -1186,7 +1186,7 @@ int ApplicationBase::exportToImageForApi(const struct ImageExportOption* imageEx
   tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(
     width, 
     height, 
-    imageExportOption->linewidth <= 0 ? 1 : imageExportOption->linewidth, 
+    imageExportOption->linewidth <= 0 ? 0 : imageExportOption->linewidth, 
     imageExportOption->oversampling <= 0 ? 0 : imageExportOption->oversampling,
     imageExportOption->resolution <= 0 ? 0 : imageExportOption->resolution,
     tl::Color(0xFF, 0xFF, 0xFF), 
@@ -1390,7 +1390,7 @@ int ApplicationBase::apiBuffer(const struct ImageExportOption* imageExportOption
   tl::PixelBuffer pixelBuffer = lv->get_pixels_with_options(
     width, 
     height, 
-    imageExportOption->linewidth <= 0 ? 1 : imageExportOption->linewidth, 
+    imageExportOption->linewidth <= 0 ? 0 : imageExportOption->linewidth, 
     imageExportOption->oversampling <= 0 ? 0 : imageExportOption->oversampling,
     imageExportOption->resolution <= 0 ? 0 : imageExportOption->resolution,
     tl::Color(0xFF, 0xFF, 0xFF), 
@@ -1551,7 +1551,15 @@ int ApplicationBase::loadFileForApi(const char* file) {
   batch_mode_view.get()->load_layout(temp, false);
   // 获取当前的 LayoutView
   lay::LayoutView *lv = lay::LayoutView::current();
+
+  std::cout << "title string is: " << lv->title_string() << std::endl;
+
+  
   const lay::CellView& activeCellView = lv->active_cellview();
+
+  std::cout << "cell display name is: " << activeCellView.cell()->get_display_name() << std::endl;
+  std::cout << "cell basic name is: " << activeCellView.cell()->get_basic_name() << std::endl;
+
   
   lv->set_hier_levels (std::make_pair (std::min (lv->get_min_hier_levels (), 0), 1));
   if (api_debug) {
